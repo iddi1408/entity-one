@@ -1,0 +1,9 @@
+Use case: ads-marketing
+Asset type: abstract cinematic full-bleed website hero backdrop for a sophisticated luxury automotive brand, modern premium Framer and technology editorial aesthetic.
+Primary request: a single huge looping sculptural elliptical ribbon made of polished liquid chrome, sweeping dramatically around the outer edges of a pitch-black canvas. The ribbon twists elegantly in three dimensions with smooth broad metallic surfaces and refined curves, like a monumental chrome strip suspended in darkness.
+Scene/backdrop: infinite pitch-black space, just a very subtle atmospheric mist surrounding portions of the sculpture.
+Composition/framing: wide landscape 16:9 or similar, approximately 1792 x 1024 or larger. The giant ribbon extends off the outer frame edges, creating an elegant elliptical framing gesture. Keep the central 65 percent, especially the upper center, predominantly uninterrupted black negative space for typography to be added later. The sculpture should hug the outside, with a sweep across a lower corner and high arcs along the side edges.
+Style/medium: exceptionally polished photoreal cinematic 3D studio rendering, sculptural editorial art direction, restrained and premium.
+Lighting/mood: soft silver reflections, elegant gradients on metal, sharp selective glints, subtle volumetric mist, dramatic deep darkness.
+Color palette: strictly black, silver, chrome and white.
+Constraints: no cars, no text, no logos, no colored accents, no people, no architecture, no watermark. Do not fill the center with chrome. Only one coherent continuous sculptural ribbon.

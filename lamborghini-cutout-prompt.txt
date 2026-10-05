@@ -1,0 +1,9 @@
+Use case: background-extraction
+Asset type: transparent automotive cutout for an interactive luxury car brand selector.
+Primary request: extract ONLY the single photographed car from the provided edit target. Remove every part of the environment: road, scenery, vegetation, mountains, sky, people, and background. Make the background genuinely transparent using alpha.
+Preservation rules: preserve the pictured car's identity, exact original body shape, silhouette, geometry, original three-quarter-front view and orientation, all panels, vents, badges, grille, headlamps, mirrors, wheels, tires, windshield, license plate, decals and photographic texture. Do not redesign, restyle, substitute or invent a different car. The reference is the exact car to cut out, not loose inspiration.
+Allowed color change: convert the car to a natural neutral grayscale / silver finish. All colored body panels, accents, badges and reflections should become grayscale while preserving original luminance, highlights, shadow and surface material detail.
+Composition/framing: wide landscape 1536 x 1024, centered car fills about 86 percent of canvas width, entire car visible with comfortable transparent margin on all sides, no cropping. Preserve original camera perspective. Only retain a subtle semi-transparent contact shadow under the tires; no floor, no glowing haze or background halo.
+Background: real alpha transparency, not a painted black, white, gray or checkerboard background.
+Constraints: no extra vehicles, no added text, no extra logos, no watermark. Do not change the car's geometry.
+Input image role: the supplied yellow Lamborghini Aventador photograph is the edit target. Preserve its angular body, its black wheels and splitter, and its facing-right original orientation. Convert the yellow paint to silver grayscale while keeping the car identical.

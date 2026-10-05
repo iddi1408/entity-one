@@ -1,0 +1,283 @@
+{
+  "attribution": "Made with Natural Earth.",
+  "geography": {
+    "source": "Natural Earth 1:50m land via world-atlas 2.0.2",
+    "url": "https://github.com/topojson/world-atlas",
+    "data_url": "https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/land-50m.json",
+    "license": "Natural Earth data is public domain; world-atlas redistribution software is ISC",
+    "license_url": "https://www.naturalearthdata.com/about/terms-of-use/"
+  },
+  "projection": {
+    "library": "d3-geo 3.1.1",
+    "method": "geoOrthographic",
+    "notes": "Spherical clipping at 90 degrees. No invented or manually traced land outlines."
+  },
+  "cityCoordinates": "Approximate city-center WGS84 longitude/latitude. Markers preserve exact projected coordinates; labels are offset with leader lines.",
+  "styling": {
+    "background": "Transparent outside globe; dark charcoal ocean; lower hemisphere softly fades to transparent",
+    "classes": [
+      "globe-ocean",
+      "globe-land",
+      "globe-grid",
+      "globe-shade",
+      "globe-rim",
+      "globe-city",
+      "city-leader",
+      "city-glow",
+      "city-pulse",
+      "city-point",
+      "city-core",
+      "city-label"
+    ],
+    "css_variables": [],
+    "animation": "When SVG is inline, owner CSS can animate .city-pulse or .city-glow; each city also has city-[slug] class. IDs are region-prefixed to avoid collisions."
+  },
+  "assets": [
+    {
+      "file": "america.svg",
+      "title": "America",
+      "viewBox": "0 0 700 700",
+      "projection": "Orthographic",
+      "center": [
+        -100,
+        32
+      ],
+      "cities": [
+        {
+          "id": "new-york",
+          "label": "NEW YORK",
+          "coordinates": [
+            -74.006,
+            40.7128
+          ],
+          "labelAt": [
+            523,
+            339
+          ],
+          "anchor": "start",
+          "x": 464.94,
+          "y": 323.53
+        },
+        {
+          "id": "los-angeles",
+          "label": "LOS ANGELES",
+          "coordinates": [
+            -118.2437,
+            34.0522
+          ],
+          "labelAt": [
+            208,
+            420
+          ],
+          "anchor": "end",
+          "x": 260.26,
+          "y": 369.97
+        },
+        {
+          "id": "chicago",
+          "label": "CHICAGO",
+          "coordinates": [
+            -87.6298,
+            41.8781
+          ],
+          "labelAt": [
+            422,
+            300
+          ],
+          "anchor": "start",
+          "x": 405.19,
+          "y": 327.47
+        },
+        {
+          "id": "miami",
+          "label": "MIAMI",
+          "coordinates": [
+            -80.1918,
+            25.7617
+          ],
+          "labelAt": [
+            500,
+            474
+          ],
+          "anchor": "start",
+          "x": 455.6,
+          "y": 417.83
+        }
+      ]
+    },
+    {
+      "file": "europe.svg",
+      "title": "Europe",
+      "viewBox": "0 0 700 700",
+      "projection": "Orthographic",
+      "center": [
+        10,
+        42
+      ],
+      "cities": [
+        {
+          "id": "london",
+          "label": "LONDON",
+          "coordinates": [
+            -0.1278,
+            51.5074
+          ],
+          "labelAt": [
+            254,
+            304
+          ],
+          "anchor": "end",
+          "x": 312.13,
+          "y": 330.6
+        },
+        {
+          "id": "paris",
+          "label": "PARIS",
+          "coordinates": [
+            2.3522,
+            48.8566
+          ],
+          "labelAt": [
+            242,
+            361
+          ],
+          "anchor": "end",
+          "x": 319.7,
+          "y": 347.34
+        },
+        {
+          "id": "zurich",
+          "label": "ZURICH",
+          "coordinates": [
+            8.5417,
+            47.3769
+          ],
+          "labelAt": [
+            425,
+            327
+          ],
+          "anchor": "start",
+          "x": 344.04,
+          "y": 357.53
+        },
+        {
+          "id": "milan",
+          "label": "MILAN",
+          "coordinates": [
+            9.19,
+            45.4642
+          ],
+          "labelAt": [
+            445,
+            390
+          ],
+          "anchor": "start",
+          "x": 346.57,
+          "y": 369.08
+        },
+        {
+          "id": "monaco",
+          "label": "MONACO",
+          "coordinates": [
+            7.4246,
+            43.7384
+          ],
+          "labelAt": [
+            293,
+            441
+          ],
+          "anchor": "end",
+          "x": 338.77,
+          "y": 379.33
+        }
+      ]
+    },
+    {
+      "file": "gulf-asia.svg",
+      "title": "Gulf and Asia",
+      "viewBox": "0 0 700 700",
+      "projection": "Orthographic",
+      "center": [
+        93,
+        20
+      ],
+      "cities": [
+        {
+          "id": "dubai",
+          "label": "DUBAI",
+          "coordinates": [
+            55.2708,
+            25.2048
+          ],
+          "labelAt": [
+            202,
+            302
+          ],
+          "anchor": "start",
+          "x": 158.43,
+          "y": 336.22
+        },
+        {
+          "id": "abu-dhabi",
+          "label": "ABU DHABI",
+          "coordinates": [
+            54.3773,
+            24.4539
+          ],
+          "labelAt": [
+            159,
+            402
+          ],
+          "anchor": "start",
+          "x": 153.4,
+          "y": 339.57
+        },
+        {
+          "id": "singapore",
+          "label": "SINGAPORE",
+          "coordinates": [
+            103.8198,
+            1.3521
+          ],
+          "labelAt": [
+            447,
+            536
+          ],
+          "anchor": "start",
+          "x": 414.93,
+          "y": 498.53
+        },
+        {
+          "id": "hong-kong",
+          "label": "HONG KONG",
+          "coordinates": [
+            114.1694,
+            22.3193
+          ],
+          "labelAt": [
+            505,
+            353
+          ],
+          "anchor": "start",
+          "x": 465.59,
+          "y": 368.61
+        },
+        {
+          "id": "tokyo",
+          "label": "TOKYO",
+          "coordinates": [
+            139.6503,
+            35.6762
+          ],
+          "labelAt": [
+            591,
+            242
+          ],
+          "anchor": "middle",
+          "x": 554.38,
+          "y": 266.37
+        }
+      ]
+    }
+  ]
+}

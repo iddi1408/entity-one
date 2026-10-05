@@ -1,0 +1,14 @@
+ENTITY-1 / OWNER HANDOFF
+
+Use EXCLUSIVE to sign in with the single existing administrator account. There is no public account creation or exclusive key. After login, ADMIN opens the dashboard.
+
+Manage inventory and wanted listings, statuses, galleries, private notes, company content, contact details, social links, team members and partners. Media supports PNG, JPEG and WebP. Backups can restore previous saved content; Access manages active sessions. Private notes, drafts and unavailable listings stay outside the public collection.
+
+Hosted data is persistent in D1 and uploaded media in private R2 storage. Local preview uses .sites-runtime/preview.sqlite and .sites-runtime/uploads. These are separate environments; credentials, runtime databases and sessions are never committed to GitHub. Source repository: https://github.com/iddi1408/entity-one
+
+Initial content still includes sample stock, office contacts, team names and partner records. Replace these through Site Content and Listings. The white SVJ hero and cutout artwork are illustrative. Credits and licensing are recorded in public/image-credits.html and the source attribution files.
+
+Local start: START-LOCAL.cmd, or npm run dev. Preview binds to http://127.0.0.1:4174.
+Build: npm run build. Validation: npm run validate, npm test, npm run test:preview and npm run test:hosting.
+
+See README.md for hosting, storage, security and recovery details. No system can be guaranteed unhackable; keep dependencies and account access maintained.

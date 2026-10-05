@@ -1,0 +1,23 @@
+{
+  "name": "entity-one-atelier",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "validate": "node scripts/validate-artifact.mjs",
+    "dev": "node --experimental-sqlite scripts/preview.mjs",
+    "db:generate": "drizzle-kit generate",
+    "test": "node --experimental-sqlite scripts/test.mjs",
+    "test:preview": "node --experimental-sqlite scripts/test-preview.mjs",
+    "test:hosting": "node scripts/test-password.mjs && node --experimental-sqlite scripts/test-bootstrap.mjs && node scripts/test-hosted-media.mjs && node scripts/test-site-assets.mjs",
+    "admin:provision": "node --experimental-sqlite scripts/provision-admin.mjs"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.31.4",
+    "drizzle-orm": "^0.44.5",
+    "esbuild": "^0.25.12"
+  },
+  "dependencies": {
+    "@noble/hashes": "^2.4.0"
+  }
+}

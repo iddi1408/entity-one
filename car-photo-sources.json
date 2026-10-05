@@ -1,0 +1,42 @@
+{
+  "license": "Unsplash License",
+  "license_url": "https://unsplash.com/license",
+  "license_summary": "Free commercial and noncommercial use including modification. Attribution appreciated but not required. No sale without significant modification or compiling into a competing image service.",
+  "verified_on": "2026-10-05",
+  "usage": "Demo vehicle listings; not photographs of actual inventory offered for sale.",
+  "assets": [
+    {
+      "model": "Porsche 911 GT3 RS",
+      "filename": "porsche-911-gt3-rs.jpg",
+      "photographer": "Rico Reynaldi",
+      "source_url": "https://unsplash.com/photos/a-grey-sports-car-parked-in-front-of-a-building-BR80aCsrmxE",
+      "image_url": "https://images.unsplash.com/photo-1699325635304-a2f409b06d19?auto=format&fit=max&w=1800&q=90",
+      "width": 1800,
+      "height": 1200,
+      "verification": "Source tags specify Porsche 911 GT3 RS; visible side decal, rear wing and model bodywork agree. Entire vehicle visible.",
+      "suggested_object_position": "55% 67%"
+    },
+    {
+      "model": "Lamborghini Aventador S",
+      "filename": "lamborghini-aventador-s.jpg",
+      "photographer": "Blacklist Tallinn",
+      "source_url": "https://unsplash.com/photos/a-yellow-sports-car-driving-down-the-road-2fV8oUzPemQ",
+      "image_url": "https://images.unsplash.com/photo-1694725736570-e2343ab54550?auto=format&fit=max&w=1800&q=90",
+      "width": 1800,
+      "height": 1202,
+      "verification": "Source caption explicitly names Lamborghini Aventador S; visually agrees. Entire vehicle visible in rolling shot.",
+      "suggested_object_position": "50% 56%"
+    },
+    {
+      "model": "Ferrari 488",
+      "filename": "ferrari-488.jpg",
+      "photographer": "ben (@benjaminrch)",
+      "source_url": "https://unsplash.com/photos/red-ferrari-458-italia-on-road-during-daytime-J_VW3LsCkQQ",
+      "image_url": "https://images.unsplash.com/photo-1600673492740-a7577ade9928?auto=format&fit=max&w=1800&q=90",
+      "width": 1800,
+      "height": 1198,
+      "verification": "Source title incorrectly says 458 Italia; author caption says Ferrari 488 pista. Visible rear-quarter side air intakes and front bodywork identify 488 family. Use Ferrari 488 label only; specific trim is not verified. Entire vehicle visible apart from small grass overlap at lower wheel/bumper.",
+      "suggested_object_position": "64% 73%"
+    }
+  ]
+}

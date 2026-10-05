@@ -1,0 +1,107 @@
+{
+  "verified_on": "2026-10-05",
+  "usage": "Same demo vehicle photographs as the existing catalog; not photographs of actual inventory offered for sale.",
+  "processing": "Downloaded from Unsplash image service. Native copies have no query parameters. 3200px derivatives use auto=format&fit=max&w=3200&q=90. No local pixel edits or upscaling.",
+  "assets": [
+    {
+      "filename": "porsche-911-gt3-rs.jpg",
+      "width": 6000,
+      "height": 4000,
+      "bytes": 1693548,
+      "photographer": "Rico Reynaldi",
+      "source_url": "https://unsplash.com/photos/a-grey-sports-car-parked-in-front-of-a-building-BR80aCsrmxE",
+      "image_url": "https://images.unsplash.com/photo-1699325635304-a2f409b06d19",
+      "derivative": {
+        "filename": "porsche-911-gt3-rs-3200.jpg",
+        "width": 3200,
+        "height": 2133,
+        "bytes": 876555,
+        "image_url": "https://images.unsplash.com/photo-1699325635304-a2f409b06d19?auto=format&fit=max&w=3200&q=90"
+      }
+    },
+    {
+      "filename": "lamborghini-aventador-s.jpg",
+      "width": 5170,
+      "height": 3451,
+      "bytes": 2264303,
+      "photographer": "Blacklist Tallinn",
+      "source_url": "https://unsplash.com/photos/a-yellow-sports-car-driving-down-the-road-2fV8oUzPemQ",
+      "image_url": "https://images.unsplash.com/photo-1694725736570-e2343ab54550",
+      "derivative": {
+        "filename": "lamborghini-aventador-s-3200.jpg",
+        "width": 3200,
+        "height": 2136,
+        "bytes": 981218,
+        "image_url": "https://images.unsplash.com/photo-1694725736570-e2343ab54550?auto=format&fit=max&w=3200&q=90"
+      }
+    },
+    {
+      "filename": "ferrari-488.jpg",
+      "width": 6048,
+      "height": 4024,
+      "bytes": 2125958,
+      "photographer": "ben (@benjaminrch)",
+      "source_url": "https://unsplash.com/photos/red-ferrari-458-italia-on-road-during-daytime-J_VW3LsCkQQ",
+      "image_url": "https://images.unsplash.com/photo-1600673492740-a7577ade9928",
+      "derivative": {
+        "filename": "ferrari-488-3200.jpg",
+        "width": 3200,
+        "height": 2129,
+        "bytes": 1037363,
+        "image_url": "https://images.unsplash.com/photo-1600673492740-a7577ade9928?auto=format&fit=max&w=3200&q=90"
+      },
+      "model_note": "Source title says 458 Italia; author caption names Ferrari 488 pista. Preserve existing generic Ferrari 488 family label; specific trim not independently certified."
+    }
+  ],
+  "checks": [
+    "All downloaded files decode as actual JPEG format.",
+    "Native copies viewed and verified to match existing photo, composition and colour.",
+    "All native widths exceed 2800px; all derivative widths are exactly 3200px."
+  ],
+  "audit_findings": [
+    {
+      "asset": "e1-logo.png",
+      "status": "active",
+      "finding": "128x128 source shown at 130 CSS px on desktop Exclusive, only 0.98 native pixels per CSS pixel. Prefer original vector or >=260px source for DPR2; footer 45px is adequate.",
+      "locations": [
+        "public/design.css:1",
+        "public/index.html:13"
+      ]
+    },
+    {
+      "asset": "lamborghini-yellow-cutout.png",
+      "status": "active before hero rebuild",
+      "finding": "1535x1024 alpha image adequate DPR1; old desktop hero contain box reaches 660 CSS px height, so DPR2 needs 1320px image height. Existing showcase usage is adequate DPR2."
+    },
+    {
+      "asset": "porsche-cutout.png",
+      "status": "active",
+      "finding": "1536x1024 alpha image in showcase max height395px; adequate through DPR2."
+    },
+    {
+      "asset": "ferrari-red-cutout.png",
+      "status": "active",
+      "finding": "1536x1024 alpha image in showcase max height395px; adequate through DPR2."
+    },
+    {
+      "asset": "chrome-ribbon.png",
+      "status": "active",
+      "finding": "1659x948 used full cover on Exclusive min-height640px and About poster. Potential high-DPI softness; source height smaller than1280px DPR2 target."
+    },
+    {
+      "asset": "17 raster marque logos",
+      "status": "active",
+      "finding": "Adequate current rendered dimensions overall. SVG wrappers crop raster files. Porsche effective crop182x218 is tightest, near100px display height: adequate around DPR2, potentially soft DPR3."
+    },
+    {
+      "asset": "america-new-york.jpg, europe-monaco.jpg, gulf-asia-dubai.jpg",
+      "status": "unused",
+      "finding": "Only stale region data filenames; regionCards renders vector SVG globes instead."
+    },
+    {
+      "asset": "lamborghini-cutout.png, ferrari-cutout.png",
+      "status": "unused",
+      "finding": "Previous grayscale cutouts have no active code references."
+    }
+  ]
+}

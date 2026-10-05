@@ -1,0 +1,37 @@
+{
+  "license": "Unsplash License",
+  "license_url": "https://unsplash.com/license",
+  "license_summary": "Free commercial and noncommercial use, including modification; attribution appreciated but not required. Images may not be sold without significant modification or compiled into a competing image service.",
+  "verified_on": "2026-10-05",
+  "assets": [
+    {
+      "region": "AMERICA",
+      "filename": "america-new-york.jpg",
+      "location": "New York, USA",
+      "photographer": "Chris Linnett",
+      "source_url": "https://unsplash.com/photos/a-city-skyline-across-the-water-fb3zNWeVtFk",
+      "image_url": "https://images.unsplash.com/photo-1655923478764-dc557f11c497?auto=format&fit=max&w=1800&q=88",
+      "dimensions": "1800x1200",
+      "suggested_object_position": "50% 60%"
+    },
+    {
+      "region": "EUROPE",
+      "filename": "europe-monaco.jpg",
+      "location": "Monaco",
+      "photographer": "Hugo ROUQUETTE",
+      "source_url": "https://unsplash.com/es/fotos/una-vista-panoramica-de-una-ciudad-junto-al-oceano-rMUSyQV-ds0",
+      "image_url": "https://images.unsplash.com/photo-1717062542121-049a26293633?auto=format&fit=max&w=3000&q=88",
+      "suggested_object_position": "55% 70%"
+    },
+    {
+      "region": "GULF AND ASIA",
+      "filename": "gulf-asia-dubai.jpg",
+      "location": "Dubai, United Arab Emirates",
+      "photographer": "Farhang Ahmed",
+      "source_url": "https://unsplash.com/photos/city-skyline-across-body-of-water-during-daytime-Ym3-44yrgfA",
+      "image_url": "https://images.unsplash.com/photo-1589287045688-5ace6419b16e?auto=format&fit=max&w=1800&q=88",
+      "dimensions": "1800x1013",
+      "suggested_object_position": "60% 65%"
+    }
+  ]
+}

@@ -1,0 +1,160 @@
+{
+  "settings": {
+    "headline": "Extraordinary automobiles.\nA more personal world.",
+    "introduction": "ENTITY-1 is a private entity brokerage firm specialising in off-market supercars and hypercars. We connect remarkable automobiles with the people who understand them, through a carefully cultivated international network.",
+    "about": "The most remarkable cars rarely follow an ordinary path. Neither do we. ENTITY-1 is a private entity brokerage firm specialising in off-market supercars and hypercars.\n\nWe bring owners and collectors together through a personal, discreet approach. From the initial introduction to the final handover, every detail is considered. Every connection matters.",
+    "heroVideo": "",
+    "aboutVideo": "",
+    "email": "enquiries@entity-1.example",
+    "socials": {
+      "instagram": "",
+      "tiktok": "",
+      "x": "",
+      "linkedin": "",
+      "reddit": ""
+    },
+    "offices": [
+      {
+        "region": "EU",
+        "city": "London",
+        "country": "United Kingdom",
+        "phone": "+44 (0)20 XXXX XXXX"
+      },
+      {
+        "region": "US",
+        "city": "Miami",
+        "country": "United States",
+        "phone": "+1 (305) XXX XXXX"
+      },
+      {
+        "region": "UAE",
+        "city": "Dubai",
+        "country": "United Arab Emirates",
+        "phone": "+971 (0)4 XXX XXXX"
+      }
+    ],
+    "members": [
+      {
+        "name": "Alexander Morgan",
+        "position": "Founder & Managing Director"
+      },
+      {
+        "name": "Sofia Laurent",
+        "position": "Head of European Brokerage"
+      },
+      {
+        "name": "Omar Al Nasser",
+        "position": "Head of Gulf & Asia"
+      }
+    ],
+    "partners": [
+      {
+        "name": "RM Sotheby’s",
+        "mark": "RM Sotheby’s",
+        "url": "https://rmsothebys.com/"
+      },
+      {
+        "name": "Aurum Collective",
+        "mark": "A / C",
+        "url": ""
+      },
+      {
+        "name": "Monarch Automotive",
+        "mark": "M O N A R C H",
+        "url": ""
+      }
+    ]
+  },
+  "listings": [
+    {
+      "id": "e1-001",
+      "type": "inventory",
+      "brand": "Porsche",
+      "model": "911 GT3 RS",
+      "year": "2024",
+      "region": "Europe",
+      "location": "Monaco",
+      "mileage": "1,200 km",
+      "spec": "EU specification",
+      "price": "Price on application",
+      "image": "/assets/porsche-911-gt3-rs.jpg",
+      "description": "A focused expression of Porsche’s motorsport heritage. Complete specification and further details are available through a private introduction.",
+      "featured": true
+    },
+    {
+      "id": "e1-002",
+      "type": "inventory",
+      "brand": "Lamborghini",
+      "model": "Aventador S",
+      "year": "2019",
+      "region": "Gulf and Asia",
+      "location": "Dubai, UAE",
+      "mileage": "8,500 km",
+      "spec": "GCC specification",
+      "price": "Price on application",
+      "image": "/assets/lamborghini-aventador-s.jpg",
+      "description": "The naturally aspirated V12, distilled. An unmistakable silhouette and a compelling addition to a considered collection.",
+      "featured": true
+    },
+    {
+      "id": "e1-003",
+      "type": "inventory",
+      "brand": "Ferrari",
+      "model": "488",
+      "year": "2018",
+      "region": "America",
+      "location": "Miami, US",
+      "mileage": "12,000 km",
+      "spec": "US specification",
+      "price": "Price on application",
+      "image": "/assets/ferrari-488.jpg",
+      "description": "Italian design, precision and theatre. Contact our team for a personal introduction and a detailed presentation.",
+      "featured": true
+    },
+    {
+      "id": "e1-004",
+      "type": "wanted",
+      "brand": "Porsche",
+      "model": "911 GT3 RS",
+      "year": "2023–2025",
+      "region": "America",
+      "location": "North American mandate",
+      "mileage": "Under 5,000 km preferred",
+      "spec": "Full history",
+      "price": "Budget on request",
+      "image": "/assets/porsche-911-gt3-rs.jpg",
+      "description": "Seeking an exceptional GT3 RS for a private collection. Original paint and a complete service history preferred. All colours considered.",
+      "featured": false
+    },
+    {
+      "id": "e1-005",
+      "type": "wanted",
+      "brand": "Lamborghini",
+      "model": "Aventador S",
+      "year": "2017–2021",
+      "region": "Europe",
+      "location": "European mandate",
+      "mileage": "Low mileage preferred",
+      "spec": "Original specification",
+      "price": "Budget on request",
+      "image": "/assets/lamborghini-aventador-s.jpg",
+      "description": "Private acquisition request for an original, well-documented Aventador S. Discreet introductions from owners and representatives welcomed.",
+      "featured": false
+    },
+    {
+      "id": "e1-006",
+      "type": "wanted",
+      "brand": "Ferrari",
+      "model": "488",
+      "year": "2015–2020",
+      "region": "Gulf and Asia",
+      "location": "Dubai mandate",
+      "mileage": "All mileages considered",
+      "spec": "Full service history",
+      "price": "Budget on request",
+      "image": "/assets/ferrari-488.jpg",
+      "description": "Sourcing a Ferrari 488 on behalf of a collector. Please provide specification, mileage and available provenance with your introduction.",
+      "featured": false
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "brand": "McLaren",
+  "asset": "standalone speedmark, no wordmark",
+  "path": "C:\\Users\\PC\\Documents\\ChatGPT\\entity 1\\new-assets\\brand-logos\\mclaren-speedmark-orange.svg",
+  "filename": "mclaren-speedmark-orange.svg",
+  "format": "SVG",
+  "width": 700,
+  "height": 384,
+  "viewBox": "19.61 0 4.4 2.41",
+  "fill": "#F58229",
+  "has_transparency": true,
+  "source_page": "https://www.mclaren.com/racing/",
+  "source_svg": "https://www.mclaren.com/images/mclaren-logo.svg",
+  "source_png_comparison": "https://images.ctfassets.net/gy95mqeyjg28/4nqLuY9q8p9ntkFCnpH7TJ/a4a09b55b398034c4eaeaff6062e0b97/McLF1_Speedmark.png",
+  "reference_path": "C:/Users/PC/AppData/Local/Temp/codex-clipboard-7a4fc48c-fd1d-48cf-8560-811681963789.png",
+  "geometry": "Second path from the official SVG, copied unchanged. Wordmark path omitted; SVG viewBox cropped to speedmark.",
+  "colour": "#F58229 is the dominant orange pixel in the user-provided reference. Official current speedmark PNG uses #FF8000.",
+  "safety": "Self-contained SVG with title, description and one path. No script, events, external references, raster embedding, or external styles.",
+  "sha256": "2647147de64d04e1e23666ad6a23f1853fd1b6ee8aa2f2cd366f7d7af2dfce90",
+  "rights": "Official McLaren brand geometry; rights and trademarks remain with McLaren.",
+  "dark_card": {
+    "css_filter": "none",
+    "object_fit": "contain",
+    "note": "Use original orange; no inversion or brightness filter."
+  }
+}

@@ -1,0 +1,10 @@
+Use case: ads-marketing
+Asset type: full-bleed website hero photography for luxury automotive brokerage ENTITY-1; brand lettering will be added separately in HTML, so no lettering in this image.
+Primary request: one original exceptionally premium cinematic automotive campaign photograph of a low silver/chrome exotic supercar, evocative of a modern hypercar but completely unbranded and not depicting factual inventory.
+Scene/backdrop: an enormous nearly black photographic studio with a glossy black floor and a restrained, subtle reflection. No visible architecture or scenery.
+Subject: a single low sculptural silver supercar, entirely front-on, exactly symmetrical, white headlights lit; entire vehicle visible with side mirrors and tires uncut.
+Composition/framing: wide landscape 16:9 image, ideally 2048 x 1152 or larger. The upper 38 percent of the image is nearly pure black uninterrupted negative space, reserved for a huge brand heading added separately. The car is centered horizontally at x50 percent and vertically around y66 percent, occupying approximately 65 percent of the image width. Camera positioned low, straight-on, never angled. Generous black margin above and around the car.
+Style/medium: hyperreal premium automotive studio photography, physically credible proportions and materials, crisp elegant detail, restrained luxury advertising polish.
+Lighting/mood: subtle precise rim lighting sculpts the silver body, high contrast, controlled white highlights, headlights glow white without excessive bloom.
+Color palette: strictly monochrome black, white, and silver.
+Constraints: one car only, no typography, no words, no logos, no license lettering, no watermark, no architecture, no scenery, no colored lights, no people, no crop of the car. Preserve the upper negative-space region as black.

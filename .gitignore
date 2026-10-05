@@ -1,7 +1,9 @@
-node_modules/
 dist/
+site.tar.gz
+
+node_modules/
 .sites-runtime/
 .env
 .env.*
-*.zip
+!.env.example
 *.tar.gz

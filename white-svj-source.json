@@ -1,0 +1,34 @@
+{
+  "created_on": "2026-10-05",
+  "asset": "public/assets/lamborghini-svj-white.png",
+  "dimensions": {
+    "width": 1536,
+    "height": 1024
+  },
+  "bytes": 1556101,
+  "alpha": "True RGBA transparency verified; exterior sample alpha=0.",
+  "status": "AI-generated photoreal studio remake using an authentic licensed SVJ photograph as the model reference. Illustrative automotive imagery, not an unaltered factual inventory photo.",
+  "model": "Lamborghini Aventador LP770-4 SVJ coupe",
+  "art_direction": "Lower front-three-quarter camera, nose facing RIGHT, rear wing on LEFT, white paint, satin black wheels, red calipers, dark carbon details, empty clean interior and studio reflections. Entire car visible.",
+  "generation": "One built-in imagegen call with the original Wikimedia SVJ photograph as reference. No programmatic flipping, recolouring, or other pixel edits.",
+  "reference": {
+    "filename": "../new-assets/white-svj-right/model-reference-original.jpg",
+    "width": 2523,
+    "height": 1467,
+    "author": "MrWalkr",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Lamborghini_Aventador_LP770-4_SVJ_White.jpg",
+    "original_url": "https://upload.wikimedia.org/wikipedia/commons/1/17/Lamborghini_Aventador_LP770-4_SVJ_White.jpg",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0/"
+  },
+  "derivative_license": "CC BY-SA 4.0",
+  "credit_text": "SVJ reference photograph by MrWalkr, Wikimedia Commons, CC BY-SA 4.0. Hero illustration adapted with AI: camera angle, orientation, wheels, lighting and background changed. Adapted image licensed CC BY-SA 4.0.",
+  "credit_html": "SVJ reference photograph by <a href=\"https://commons.wikimedia.org/wiki/User:MrWalkr\">MrWalkr</a>, <a href=\"https://commons.wikimedia.org/wiki/File:Lamborghini_Aventador_LP770-4_SVJ_White.jpg\">Wikimedia Commons</a>, <a href=\"https://creativecommons.org/licenses/by-sa/4.0/\">CC BY-SA 4.0</a>. Hero illustration adapted with AI: camera angle, orientation, wheels, lighting and background changed. Adapted image licensed CC BY-SA 4.0.",
+  "prompt_file": "../new-assets/white-svj-right/white-svj-right-prompt.txt",
+  "visual_check": "Confirmed lower camera than previous asset, full car uncut, correct right-facing orientation, SVJ nose vents and front aero, large SVJ rear wing, satin black wheels and white finish.",
+  "resolution_note": "Requested larger dimensions but tool returned 1536x1024. No artificial upscaling performed.",
+  "site_modified": true,
+  "source_asset_path": "../new-assets/white-svj-right/white-aventador-svj-right-cutout.png",
+  "credits_page": "/image-credits.html",
+  "installed_asset_sha256": "c6f4223eb70f21b8828ce3ba7c92e777b9bf6d53f2d9169b61dd95dbd6e37e4b"
+}

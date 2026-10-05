@@ -1,0 +1,8 @@
+Use case: background-extraction
+Asset type: a transparent-background automotive cutout for website composition.
+Input images: the supplied local Porsche photograph is the edit target. Preserve the photographed car's actual identity and geometry.
+Primary request: carefully extract the entire Porsche 911 GT3 RS from its photographic environment and make the background genuinely transparent. Remove all building, glass, trees, ground, surrounding scenery, foreground obstruction, and people. Preserve the visible car exactly: original three-quarter-front camera view, body proportions, shape, wheels, rear wing, mirrors, grilles, windshield, headlamps, details, badging, decals and photographic texture.
+Allowed color change: convert only the car to a tasteful monochrome grayscale / silver finish, including the red wheels and red side decal becoming grayscale. Preserve original lighting, highlights, shading, and material textures, rather than redesigning the car or making a new car.
+Composition/framing: entire photographed car is visible in a wide landscape output, approximately 1536 x 1024 or similar, with comfortable transparent margin around every car edge; avoid cutting mirrors, wing, bumpers, tires or shadow. Car large in frame. Maintain the original camera angle and proportions precisely.
+Background: real alpha transparency, no solid black, white, gray, or checkerboard background. Only retain a very subtle semi-transparent natural contact shadow directly under the car; no ground surface.
+Constraints: exact same car and view, no invented geometry, no extra cars, no scenery, no added text, no added logo, no watermark. Preserve all photographed car components while removing the environment.

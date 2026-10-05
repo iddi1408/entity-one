@@ -1,0 +1,721 @@
+{
+  "created": "2026-10-05",
+  "count": 18,
+  "provenance": "Downloaded existing logo artwork unchanged; no logos drawn, approximated, generated, or substituted with letters.",
+  "catalog_documentation": "https://github.com/filippofilip95/car-logos-dataset#-data-source",
+  "catalog_metadata_url": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/data.json",
+  "limitations": [
+    "The source catalog contains recognizable historical and current versions; no claim that every version is the latest brand-guideline version.",
+    "Logo copyrights and trademarks remain with their respective owners; dataset software license does not grant a separate trademark license.",
+    "Porsche, Koenigsegg, Aston Martin, Bentley, Mercedes-Benz combine a light/colour emblem with a dark lower wordmark; recommended emblem crop bounds are provided for charcoal cards."
+  ],
+  "assets": [
+    {
+      "brand": "Ferrari",
+      "slug": "ferrari",
+      "path": "C:\\Users\\PC\\Documents\\ChatGPT\\entity 1\\new-assets\\brand-logos\\ferrari.png",
+      "filename": "ferrari.png",
+      "format": "PNG",
+      "width": 640,
+      "height": 426,
+      "has_transparency": true,
+      "transparent_pixel_count": 190204,
+      "source_catalog": "https://github.com/filippofilip95/car-logos-dataset",
+      "source_page": "https://www.carlogos.org/car-brands/ferrari-logo.html",
+      "upstream_image_url": "https://www.carlogos.org/car-logos/ferrari-logo-2002-640.png",
+      "download_url": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/ferrari.png",
+      "sha256": "0fb044da5203fd7a00d2104666077e714e38417c4034f37a5bbc313d48ef5cff",
+      "source_attribution": "CarLogos.org, redistributed in filippofilip95/car-logos-dataset; original brand marks belong to their respective owners.",
+      "rights_note": "Dataset code is described as MIT; this does not license the third-party brand logo. Logo remains the trademark/property of the respective brand owner.",
+      "alpha_content_bbox": [
+        205,
+        30,
+        434,
+        396
+      ],
+      "recommended_dark_card_crop_bbox": [
+        205,
+        30,
+        434,
+        396
+      ],
+      "crop_bbox_format": "[left, top, right, bottom] source pixels; presentation crop only, original artwork unchanged",
+      "dark_card": {
+        "background": "#101214",
+        "treatment": "preserve original colour/chrome",
+        "css_filter": "none",
+        "notes": "Preserve yellow shield, black horse, and Italian tricolour.",
+        "fit": "Crop transparent padding to recommended bbox; object-fit:contain; do not stretch.",
+        "visually_verified": true
+      }
+    },
+    {
+      "brand": "Lamborghini",
+      "slug": "lamborghini",
+      "path": "C:\\Users\\PC\\Documents\\ChatGPT\\entity 1\\new-assets\\brand-logos\\lamborghini.png",
+      "filename": "lamborghini.png",
+      "format": "PNG",
+      "width": 640,
+      "height": 426,
+      "has_transparency": true,
+      "transparent_pixel_count": 186967,
+      "source_catalog": "https://github.com/filippofilip95/car-logos-dataset",
+      "source_page": "https://www.carlogos.org/car-brands/lamborghini-logo.html",
+      "upstream_image_url": "https://www.carlogos.org/car-logos/lamborghini-logo-1998-640.png",
+      "download_url": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/lamborghini.png",
+      "sha256": "8a4e840e79ee4134e76cf8991a2273a13a184ad5267b8a45c0d9cce9d933a2bc",
+      "source_attribution": "CarLogos.org, redistributed in filippofilip95/car-logos-dataset; original brand marks belong to their respective owners.",
+      "rights_note": "Dataset code is described as MIT; this does not license the third-party brand logo. Logo remains the trademark/property of the respective brand owner.",
+      "alpha_content_bbox": [
+        160,
+        30,
+        479,
+        396
+      ],
+      "recommended_dark_card_crop_bbox": [
+        160,
+        30,
+        479,
+        396
+      ],
+      "crop_bbox_format": "[left, top, right, bottom] source pixels; presentation crop only, original artwork unchanged",
+      "dark_card": {
+        "background": "#101214",
+        "treatment": "preserve original colour/chrome",
+        "css_filter": "none",
+        "notes": "Preserve gold bull/lettering and black shield.",
+        "fit": "Crop transparent padding to recommended bbox; object-fit:contain; do not stretch.",
+        "visually_verified": true
+      }
+    },
+    {
+      "brand": "Porsche",
+      "slug": "porsche",
+      "path": "C:\\Users\\PC\\Documents\\ChatGPT\\entity 1\\new-assets\\brand-logos\\porsche.png",
+      "filename": "porsche.png",
+      "format": "PNG",
+      "width": 640,
+      "height": 426,
+      "has_transparency": true,
+      "transparent_pixel_count": 233790,
+      "source_catalog": "https://github.com/filippofilip95/car-logos-dataset",
+      "source_page": "https://www.carlogos.org/car-brands/porsche-logo.html",
+      "upstream_image_url": "https://www.carlogos.org/car-logos/porsche-logo-2014-full-640.png",
+      "download_url": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/porsche.png",
+      "sha256": "0435bf0ad58432089b5484df1578ac3c5f9a28f79ad62693cdf3c93e8dfb8485",
+      "source_attribution": "CarLogos.org, redistributed in filippofilip95/car-logos-dataset; original brand marks belong to their respective owners.",
+      "rights_note": "Dataset code is described as MIT; this does not license the third-party brand logo. Logo remains the trademark/property of the respective brand owner.",
+      "alpha_content_bbox": [
+        30,
+        67,
+        610,
+        359
+      ],
+      "recommended_dark_card_crop_bbox": [
+        238,
+        67,
+        467,
+        285
+      ],
+      "crop_bbox_format": "[left, top, right, bottom] source pixels; presentation crop only, original artwork unchanged",
+      "dark_card": {
+        "background": "#101214",
+        "treatment": "preserve original colour/chrome",
+        "css_filter": "none",
+        "notes": "Use crest crop for dark cards; full asset also has a black PORSCHE wordmark below.",
+        "fit": "Crop transparent padding to recommended bbox; object-fit:contain; do not stretch.",
+        "visually_verified": true
+      }
+    },
+    {
+      "brand": "McLaren",
+      "slug": "mclaren",
+      "path": "C:\\Users\\PC\\Documents\\ChatGPT\\entity 1\\new-assets\\brand-logos\\mclaren.svg",
+      "filename": "mclaren.svg",
+      "format": "SVG",
+      "width": 142,
+      "height": 32,
+      "has_transparency": true,
+      "source_catalog": null,
+      "source_page": "https://www.mclaren.com/cars/us_en",
+      "upstream_image_url": "https://www.mclaren.com/cars/assets/images/logo.svg",
+      "download_url": "https://www.mclaren.com/cars/assets/images/logo.svg",
+      "sha256": "f41f8616dfa5381bb413efa2ff4b3f6abeaa914a6dca518363ac869a1a627901",
+      "source_attribution": "McLaren Automotive official website header asset, downloaded unchanged.",
+      "rights_note": "Official brand artwork; rights and trademarks remain with McLaren.",
+      "svg_safety": "Parsed XML: only svg and path geometry; no scripts, event handlers, external links, images, CSS, or external assets.",
+      "alpha_content_bbox": [
+        12,
+        10,
+        130,
+        22
+      ],
+      "recommended_dark_card_crop_bbox": [
+        12,
+        10,
+        130,
+        22
+      ],
+      "crop_bbox_format": "[left, top, right, bottom] source pixels; presentation crop only, original artwork unchanged",
+      "dark_card": {
+        "background": "#101214",
+        "treatment": "preserve original colour/chrome",
+        "css_filter": "none",
+        "notes": "Official McLaren website SVG, naturally white 2026 wordmark; use unchanged.",
+        "fit": "Crop transparent padding to recommended bbox; object-fit:contain; do not stretch.",
+        "visually_verified": true
+      }
+    },
+    {
+      "brand": "Bugatti",
+      "slug": "bugatti",
+      "path": "C:\\Users\\PC\\Documents\\ChatGPT\\entity 1\\new-assets\\brand-logos\\bugatti.png",
+      "filename": "bugatti.png",
+      "format": "PNG",
+      "width": 1024,
+      "height": 768,
+      "has_transparency": true,
+      "transparent_pixel_count": 610188,
+      "source_catalog": "https://github.com/filippofilip95/car-logos-dataset",
+      "source_page": "https://www.carlogos.org/car-brands/bugatti-logo.html",
+      "upstream_image_url": "https://www.carlogos.org/logo/Bugatti-logo-1024x768.png",
+      "download_url": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/bugatti.png",
+      "sha256": "940ddcb7ae296ba32f8b999e9d407fef1719390ddb1e76ffdebba6f1276809f8",
+      "source_attribution": "CarLogos.org, redistributed in filippofilip95/car-logos-dataset; original brand marks belong to their respective owners.",
+      "rights_note": "Dataset code is described as MIT; this does not license the third-party brand logo. Logo remains the trademark/property of the respective brand owner.",
+      "alpha_content_bbox": [
+        172,
+        201,
+        852,
+        548
+      ],
+      "recommended_dark_card_crop_bbox": [
+        172,
+        201,
+        852,
+        548
+      ],
+      "crop_bbox_format": "[left, top, right, bottom] source pixels; presentation crop only, original artwork unchanged",
+      "dark_card": {
+        "background": "#101214",
+        "treatment": "preserve original colour/chrome",
+        "css_filter": "none",
+        "notes": "Preserve red oval, white letters, and metallic outer detail.",
+        "fit": "Crop transparent padding to recommended bbox; object-fit:contain; do not stretch.",
+        "visually_verified": true
+      }
+    },
+    {
+      "brand": "Pagani",
+      "slug": "pagani",
+      "path": "C:\\Users\\PC\\Documents\\ChatGPT\\entity 1\\new-assets\\brand-logos\\pagani.png",
+      "filename": "pagani.png",
+      "format": "PNG",
+      "width": 1440,
+      "height": 900,
+      "has_transparency": true,
+      "transparent_pixel_count": 1052422,
+      "source_catalog": "https://github.com/filippofilip95/car-logos-dataset",
+      "source_page": "https://www.carlogos.org/car-brands/pagani-logo.html",
+      "upstream_image_url": "https://www.carlogos.org/logo/Pagani-logo-1992-1440x900.png",
+      "download_url": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/pagani.png",
+      "sha256": "df40dbf91154274334c66d39b8241ce9b70325e12221ace7300f25f92f05814f",
+      "source_attribution": "CarLogos.org, redistributed in filippofilip95/car-logos-dataset; original brand marks belong to their respective owners.",
+      "rights_note": "Dataset code is described as MIT; this does not license the third-party brand logo. Logo remains the trademark/property of the respective brand owner.",
+      "alpha_content_bbox": [
+        338,
+        245,
+        1102,
+        654
+      ],
+      "recommended_dark_card_crop_bbox": [
+        338,
+        245,
+        1102,
+        654
+      ],
+      "crop_bbox_format": "[left, top, right, bottom] source pixels; presentation crop only, original artwork unchanged",
+      "dark_card": {
+        "background": "#101214",
+        "treatment": "preserve original colour/chrome",
+        "css_filter": "none",
+        "notes": "Preserve chrome gradients and embossed lettering.",
+        "fit": "Crop transparent padding to recommended bbox; object-fit:contain; do not stretch.",
+        "visually_verified": true
+      }
+    },
+    {
+      "brand": "Koenigsegg",
+      "slug": "koenigsegg",
+      "path": "C:\\Users\\PC\\Documents\\ChatGPT\\entity 1\\new-assets\\brand-logos\\koenigsegg.png",
+      "filename": "koenigsegg.png",
+      "format": "PNG",
+      "width": 2048,
+      "height": 2048,
+      "has_transparency": true,
+      "transparent_pixel_count": 2899507,
+      "source_catalog": "https://github.com/filippofilip95/car-logos-dataset",
+      "source_page": "https://www.carlogos.org/car-brands/koenigsegg-logo.html",
+      "upstream_image_url": "https://www.carlogos.org/logo/Koenigsegg-logo-1994-2048x2048.png",
+      "download_url": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/koenigsegg.png",
+      "sha256": "041fdce1e242e4dff5a99e6b357f074eca465d0d7114eec1697eb73a37a48477",
+      "source_attribution": "CarLogos.org, redistributed in filippofilip95/car-logos-dataset; original brand marks belong to their respective owners.",
+      "rights_note": "Dataset code is described as MIT; this does not license the third-party brand logo. Logo remains the trademark/property of the respective brand owner.",
+      "alpha_content_bbox": [
+        156,
+        93,
+        1892,
+        1954
+      ],
+      "recommended_dark_card_crop_bbox": [
+        500,
+        93,
+        1550,
+        1561
+      ],
+      "crop_bbox_format": "[left, top, right, bottom] source pixels; presentation crop only, original artwork unchanged",
+      "dark_card": {
+        "background": "#101214",
+        "treatment": "preserve original colour/chrome",
+        "css_filter": "none",
+        "notes": "Use coloured shield crop for dark cards; full asset also has a black wordmark below.",
+        "fit": "Crop transparent padding to recommended bbox; object-fit:contain; do not stretch.",
+        "visually_verified": true
+      }
+    },
+    {
+      "brand": "Aston Martin",
+      "slug": "aston-martin",
+      "path": "C:\\Users\\PC\\Documents\\ChatGPT\\entity 1\\new-assets\\brand-logos\\aston-martin.png",
+      "filename": "aston-martin.png",
+      "format": "PNG",
+      "width": 6000,
+      "height": 3000,
+      "has_transparency": true,
+      "transparent_pixel_count": 13963045,
+      "source_catalog": "https://github.com/filippofilip95/car-logos-dataset",
+      "source_page": "https://www.carlogos.org/car-brands/aston-martin-logo.html",
+      "upstream_image_url": "https://www.carlogos.org/logo/Aston-Martin-logo-2003-6000x3000.png",
+      "download_url": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/aston-martin.png",
+      "sha256": "e1414c7bc3132465b18e2dd5d02a4eac8dba25cc037d05f1e7b5555d421d095c",
+      "source_attribution": "CarLogos.org, redistributed in filippofilip95/car-logos-dataset; original brand marks belong to their respective owners.",
+      "rights_note": "Dataset code is described as MIT; this does not license the third-party brand logo. Logo remains the trademark/property of the respective brand owner.",
+      "alpha_content_bbox": [
+        501,
+        382,
+        5499,
+        2617
+      ],
+      "recommended_dark_card_crop_bbox": [
+        501,
+        382,
+        5499,
+        1502
+      ],
+      "crop_bbox_format": "[left, top, right, bottom] source pixels; presentation crop only, original artwork unchanged",
+      "dark_card": {
+        "background": "#101214",
+        "treatment": "preserve original colour/chrome",
+        "css_filter": "none",
+        "notes": "Use wing emblem crop; preserve green centre and white/black wing detail. Lower black wordmark would be low-contrast.",
+        "fit": "Crop transparent padding to recommended bbox; object-fit:contain; do not stretch.",
+        "visually_verified": true
+      }
+    },
+    {
+      "brand": "Bentley",
+      "slug": "bentley",
+      "path": "C:\\Users\\PC\\Documents\\ChatGPT\\entity 1\\new-assets\\brand-logos\\bentley.png",
+      "filename": "bentley.png",
+      "format": "PNG",
+      "width": 640,
+      "height": 426,
+      "has_transparency": true,
+      "transparent_pixel_count": 202598,
+      "source_catalog": "https://github.com/filippofilip95/car-logos-dataset",
+      "source_page": "https://www.carlogos.org/car-brands/bentley-logo.html",
+      "upstream_image_url": "https://www.carlogos.org/car-logos/bentley-logo-2002-640.png",
+      "download_url": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/bentley.png",
+      "sha256": "d89e040b7aa7fbef4335cb9f06bc6b3cdef6806308c54d289244dd458a58ca0f",
+      "source_attribution": "CarLogos.org, redistributed in filippofilip95/car-logos-dataset; original brand marks belong to their respective owners.",
+      "rights_note": "Dataset code is described as MIT; this does not license the third-party brand logo. Logo remains the trademark/property of the respective brand owner.",
+      "alpha_content_bbox": [
+        30,
+        66,
+        610,
+        359
+      ],
+      "recommended_dark_card_crop_bbox": [
+        30,
+        66,
+        610,
+        255
+      ],
+      "crop_bbox_format": "[left, top, right, bottom] source pixels; presentation crop only, original artwork unchanged",
+      "dark_card": {
+        "background": "#101214",
+        "treatment": "preserve original colour/chrome",
+        "css_filter": "none",
+        "notes": "Use wing emblem crop; preserve silver detail and black B roundel. Lower black wordmark would be low-contrast.",
+        "fit": "Crop transparent padding to recommended bbox; object-fit:contain; do not stretch.",
+        "visually_verified": true
+      }
+    },
+    {
+      "brand": "Rolls-Royce",
+      "slug": "rolls-royce",
+      "path": "C:\\Users\\PC\\Documents\\ChatGPT\\entity 1\\new-assets\\brand-logos\\rolls-royce.png",
+      "filename": "rolls-royce.png",
+      "format": "PNG",
+      "width": 2048,
+      "height": 2048,
+      "has_transparency": true,
+      "transparent_pixel_count": 2392806,
+      "source_catalog": "https://github.com/filippofilip95/car-logos-dataset",
+      "source_page": "https://www.carlogos.org/car-brands/rolls-royce-logo.html",
+      "upstream_image_url": "https://www.carlogos.org/logo/Rolls-Royce-logo-2048x2048.png",
+      "download_url": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/rolls-royce.png",
+      "sha256": "d16c4f5f057285fe8b14ba3dfc8350ca876053afc387033802964d96941570a3",
+      "source_attribution": "CarLogos.org, redistributed in filippofilip95/car-logos-dataset; original brand marks belong to their respective owners.",
+      "rights_note": "Dataset code is described as MIT; this does not license the third-party brand logo. Logo remains the trademark/property of the respective brand owner.",
+      "alpha_content_bbox": [
+        514,
+        133,
+        1533,
+        1915
+      ],
+      "recommended_dark_card_crop_bbox": [
+        514,
+        133,
+        1533,
+        1915
+      ],
+      "crop_bbox_format": "[left, top, right, bottom] source pixels; presentation crop only, original artwork unchanged",
+      "dark_card": {
+        "background": "#101214",
+        "treatment": "preserve original colour/chrome",
+        "css_filter": "none",
+        "notes": "Preserve silver rectangular badge with black monogram/letters. Do not invert.",
+        "fit": "Crop transparent padding to recommended bbox; object-fit:contain; do not stretch.",
+        "visually_verified": true
+      }
+    },
+    {
+      "brand": "Mercedes-Benz",
+      "slug": "mercedes-benz",
+      "path": "C:\\Users\\PC\\Documents\\ChatGPT\\entity 1\\new-assets\\brand-logos\\mercedes-benz.png",
+      "filename": "mercedes-benz.png",
+      "format": "PNG",
+      "width": 1920,
+      "height": 1080,
+      "has_transparency": true,
+      "transparent_pixel_count": 1915516,
+      "source_catalog": "https://github.com/filippofilip95/car-logos-dataset",
+      "source_page": "https://www.carlogos.org/car-brands/mercedes-benz-logo.html",
+      "upstream_image_url": "https://www.carlogos.org/logo/Mercedes-Benz-logo-2011-1920x1080.png",
+      "download_url": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/mercedes-benz.png",
+      "sha256": "2de952207ddaeb3f5f376bc653727b6a14d4c2568148aa5fc9ff3ccdf50c06d1",
+      "source_attribution": "CarLogos.org, redistributed in filippofilip95/car-logos-dataset; original brand marks belong to their respective owners.",
+      "rights_note": "Dataset code is described as MIT; this does not license the third-party brand logo. Logo remains the trademark/property of the respective brand owner.",
+      "alpha_content_bbox": [
+        195,
+        98,
+        1725,
+        981
+      ],
+      "recommended_dark_card_crop_bbox": [
+        676,
+        98,
+        1244,
+        667
+      ],
+      "crop_bbox_format": "[left, top, right, bottom] source pixels; presentation crop only, original artwork unchanged",
+      "dark_card": {
+        "background": "#101214",
+        "treatment": "preserve original colour/chrome",
+        "css_filter": "none",
+        "notes": "Use chrome star crop. Preserve shading. Lower grey wordmark is lower-contrast on charcoal.",
+        "fit": "Crop transparent padding to recommended bbox; object-fit:contain; do not stretch.",
+        "visually_verified": true
+      }
+    },
+    {
+      "brand": "BMW",
+      "slug": "bmw",
+      "path": "C:\\Users\\PC\\Documents\\ChatGPT\\entity 1\\new-assets\\brand-logos\\bmw.png",
+      "filename": "bmw.png",
+      "format": "PNG",
+      "width": 640,
+      "height": 426,
+      "has_transparency": true,
+      "transparent_pixel_count": 220691,
+      "source_catalog": "https://github.com/filippofilip95/car-logos-dataset",
+      "source_page": "https://www.carlogos.org/car-brands/bmw-logo.html",
+      "upstream_image_url": "https://www.carlogos.org/car-logos/bmw-logo-2020-gray.png",
+      "download_url": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/bmw.png",
+      "sha256": "18e51b711a78381dc73a5caf83847d3d9bf1d4cf05e9ae0f84b3f8c802b62cfc",
+      "source_attribution": "CarLogos.org, redistributed in filippofilip95/car-logos-dataset; original brand marks belong to their respective owners.",
+      "rights_note": "Dataset code is described as MIT; this does not license the third-party brand logo. Logo remains the trademark/property of the respective brand owner.",
+      "alpha_content_bbox": [
+        137,
+        30,
+        503,
+        396
+      ],
+      "recommended_dark_card_crop_bbox": [
+        137,
+        30,
+        503,
+        396
+      ],
+      "crop_bbox_format": "[left, top, right, bottom] source pixels; presentation crop only, original artwork unchanged",
+      "dark_card": {
+        "background": "#101214",
+        "treatment": "preserve original colour/chrome",
+        "css_filter": "none",
+        "notes": "Preserve blue/white roundel and grey outline/lettering.",
+        "fit": "Crop transparent padding to recommended bbox; object-fit:contain; do not stretch.",
+        "visually_verified": true
+      }
+    },
+    {
+      "brand": "Audi",
+      "slug": "audi",
+      "path": "C:\\Users\\PC\\Documents\\ChatGPT\\entity 1\\new-assets\\brand-logos\\audi.png",
+      "filename": "audi.png",
+      "format": "PNG",
+      "width": 640,
+      "height": 426,
+      "has_transparency": true,
+      "transparent_pixel_count": 225906,
+      "source_catalog": "https://github.com/filippofilip95/car-logos-dataset",
+      "source_page": "https://www.carlogos.org/car-brands/audi-logo.html",
+      "upstream_image_url": "https://www.carlogos.org/car-logos/audi-logo-2016-640.png",
+      "download_url": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/audi.png",
+      "sha256": "691df3dd0620859cac13433aaec0011aecf5da85f64c94074ab9170d03278e80",
+      "source_attribution": "CarLogos.org, redistributed in filippofilip95/car-logos-dataset; original brand marks belong to their respective owners.",
+      "rights_note": "Dataset code is described as MIT; this does not license the third-party brand logo. Logo remains the trademark/property of the respective brand owner.",
+      "alpha_content_bbox": [
+        25,
+        108,
+        615,
+        317
+      ],
+      "recommended_dark_card_crop_bbox": [
+        25,
+        108,
+        615,
+        317
+      ],
+      "crop_bbox_format": "[left, top, right, bottom] source pixels; presentation crop only, original artwork unchanged",
+      "dark_card": {
+        "background": "#101214",
+        "treatment": "invert monochrome",
+        "css_filter": "invert(1)",
+        "notes": "Black-only rings. CSS invert(1) produces readable white rings.",
+        "fit": "Crop transparent padding to recommended bbox; object-fit:contain; do not stretch.",
+        "visually_verified": true
+      }
+    },
+    {
+      "brand": "Maserati",
+      "slug": "maserati",
+      "path": "C:\\Users\\PC\\Documents\\ChatGPT\\entity 1\\new-assets\\brand-logos\\maserati.png",
+      "filename": "maserati.png",
+      "format": "PNG",
+      "width": 640,
+      "height": 426,
+      "has_transparency": true,
+      "transparent_pixel_count": 258347,
+      "source_catalog": "https://github.com/filippofilip95/car-logos-dataset",
+      "source_page": "https://www.carlogos.org/car-brands/maserati-logo.html",
+      "upstream_image_url": "https://www.carlogos.org/car-logos/maserati-logo-2020-640.png",
+      "download_url": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/maserati.png",
+      "sha256": "5a149fa6fa20c12d0efdfa245c477812c0c6688a7f06388c9a9d862e728818a8",
+      "source_attribution": "CarLogos.org, redistributed in filippofilip95/car-logos-dataset; original brand marks belong to their respective owners.",
+      "rights_note": "Dataset code is described as MIT; this does not license the third-party brand logo. Logo remains the trademark/property of the respective brand owner.",
+      "alpha_content_bbox": [
+        25,
+        93,
+        615,
+        333
+      ],
+      "recommended_dark_card_crop_bbox": [
+        25,
+        93,
+        615,
+        333
+      ],
+      "crop_bbox_format": "[left, top, right, bottom] source pixels; presentation crop only, original artwork unchanged",
+      "dark_card": {
+        "background": "#101214",
+        "treatment": "invert monochrome",
+        "css_filter": "invert(1)",
+        "notes": "Black monochrome trident/wordmark. CSS invert(1) preserves detailed negative spaces.",
+        "fit": "Crop transparent padding to recommended bbox; object-fit:contain; do not stretch.",
+        "visually_verified": true
+      }
+    },
+    {
+      "brand": "Lotus",
+      "slug": "lotus",
+      "path": "C:\\Users\\PC\\Documents\\ChatGPT\\entity 1\\new-assets\\brand-logos\\lotus.png",
+      "filename": "lotus.png",
+      "format": "PNG",
+      "width": 1800,
+      "height": 1800,
+      "has_transparency": true,
+      "transparent_pixel_count": 1477690,
+      "source_catalog": "https://github.com/filippofilip95/car-logos-dataset",
+      "source_page": "https://www.carlogos.org/car-brands/lotus-logo.html",
+      "upstream_image_url": "https://www.carlogos.org/logo/Lotus-logo-2019-1800x1800.png",
+      "download_url": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/lotus.png",
+      "sha256": "c664f559bf5bc2ca225f529d7f47ad86fb81751d19403b21b224a8d14271a0c7",
+      "source_attribution": "CarLogos.org, redistributed in filippofilip95/car-logos-dataset; original brand marks belong to their respective owners.",
+      "rights_note": "Dataset code is described as MIT; this does not license the third-party brand logo. Logo remains the trademark/property of the respective brand owner.",
+      "alpha_content_bbox": [
+        150,
+        150,
+        1650,
+        1650
+      ],
+      "recommended_dark_card_crop_bbox": [
+        150,
+        150,
+        1650,
+        1650
+      ],
+      "crop_bbox_format": "[left, top, right, bottom] source pixels; presentation crop only, original artwork unchanged",
+      "dark_card": {
+        "background": "#101214",
+        "treatment": "preserve original colour/chrome",
+        "css_filter": "none",
+        "notes": "Preserve yellow/green roundel.",
+        "fit": "Crop transparent padding to recommended bbox; object-fit:contain; do not stretch.",
+        "visually_verified": true
+      }
+    },
+    {
+      "brand": "Rimac",
+      "slug": "rimac",
+      "path": "C:\\Users\\PC\\Documents\\ChatGPT\\entity 1\\new-assets\\brand-logos\\rimac.png",
+      "filename": "rimac.png",
+      "format": "PNG",
+      "width": 2048,
+      "height": 2048,
+      "has_transparency": true,
+      "transparent_pixel_count": 3824292,
+      "source_catalog": "https://github.com/filippofilip95/car-logos-dataset",
+      "source_page": "https://www.carlogos.org/car-brands/rimac-logo.html",
+      "upstream_image_url": "https://www.carlogos.org/logo/Rimac-logo-2016-2048x2048.png",
+      "download_url": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/rimac.png",
+      "sha256": "6282d438a987c5e56d5cca2557a3fd732959a9c8a09d200f144fb07ea769fbd7",
+      "source_attribution": "CarLogos.org, redistributed in filippofilip95/car-logos-dataset; original brand marks belong to their respective owners.",
+      "rights_note": "Dataset code is described as MIT; this does not license the third-party brand logo. Logo remains the trademark/property of the respective brand owner.",
+      "alpha_content_bbox": [
+        286,
+        332,
+        1763,
+        1717
+      ],
+      "recommended_dark_card_crop_bbox": [
+        286,
+        332,
+        1763,
+        1717
+      ],
+      "crop_bbox_format": "[left, top, right, bottom] source pixels; presentation crop only, original artwork unchanged",
+      "dark_card": {
+        "background": "#101214",
+        "treatment": "invert monochrome",
+        "css_filter": "invert(1)",
+        "notes": "Monochrome crest/wordmark. CSS invert(1) preserves the crest detail; do not use brightness(0).",
+        "fit": "Crop transparent padding to recommended bbox; object-fit:contain; do not stretch.",
+        "visually_verified": true
+      }
+    },
+    {
+      "brand": "Jaguar",
+      "slug": "jaguar",
+      "path": "C:\\Users\\PC\\Documents\\ChatGPT\\entity 1\\new-assets\\brand-logos\\jaguar.png",
+      "filename": "jaguar.png",
+      "format": "PNG",
+      "width": 640,
+      "height": 426,
+      "has_transparency": true,
+      "transparent_pixel_count": 255000,
+      "source_catalog": "https://github.com/filippofilip95/car-logos-dataset",
+      "source_page": "https://www.carlogos.org/car-brands/jaguar-logo.html",
+      "upstream_image_url": "https://www.carlogos.org/car-logos/jaguar-logo-2021-640.png",
+      "download_url": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/jaguar.png",
+      "sha256": "0d37338a1520e5157529cbecc4a003fd12c9c6c423214a6a09e27b754c8210f7",
+      "source_attribution": "CarLogos.org, redistributed in filippofilip95/car-logos-dataset; original brand marks belong to their respective owners.",
+      "rights_note": "Dataset code is described as MIT; this does not license the third-party brand logo. Logo remains the trademark/property of the respective brand owner.",
+      "alpha_content_bbox": [
+        30,
+        82,
+        610,
+        343
+      ],
+      "recommended_dark_card_crop_bbox": [
+        30,
+        82,
+        610,
+        343
+      ],
+      "crop_bbox_format": "[left, top, right, bottom] source pixels; presentation crop only, original artwork unchanged",
+      "dark_card": {
+        "background": "#101214",
+        "treatment": "invert monochrome",
+        "css_filter": "invert(1)",
+        "notes": "Monochrome leaper/wordmark. CSS invert(1) makes grey artwork light on dark; 2021 catalog version.",
+        "fit": "Crop transparent padding to recommended bbox; object-fit:contain; do not stretch.",
+        "visually_verified": true
+      }
+    },
+    {
+      "brand": "Land Rover",
+      "slug": "land-rover",
+      "path": "C:\\Users\\PC\\Documents\\ChatGPT\\entity 1\\new-assets\\brand-logos\\land-rover.png",
+      "filename": "land-rover.png",
+      "format": "PNG",
+      "width": 1920,
+      "height": 1080,
+      "has_transparency": true,
+      "transparent_pixel_count": 1478055,
+      "source_catalog": "https://github.com/filippofilip95/car-logos-dataset",
+      "source_page": "https://www.carlogos.org/car-brands/land-rover-logo.html",
+      "upstream_image_url": "https://www.carlogos.org/logo/Land-Rover-logo-2011-1920x1080.png",
+      "download_url": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/land-rover.png",
+      "sha256": "2dc6a0ef634bef33c8c7eab8f5b5e803b65d71de9c85f86ee159c3c52eecaeb0",
+      "source_attribution": "CarLogos.org, redistributed in filippofilip95/car-logos-dataset; original brand marks belong to their respective owners.",
+      "rights_note": "Dataset code is described as MIT; this does not license the third-party brand logo. Logo remains the trademark/property of the respective brand owner.",
+      "alpha_content_bbox": [
+        354,
+        223,
+        1566,
+        857
+      ],
+      "recommended_dark_card_crop_bbox": [
+        354,
+        223,
+        1566,
+        857
+      ],
+      "crop_bbox_format": "[left, top, right, bottom] source pixels; presentation crop only, original artwork unchanged",
+      "dark_card": {
+        "background": "#101214",
+        "treatment": "preserve original colour/chrome",
+        "css_filter": "none",
+        "notes": "Preserve green oval and white/chrome lettering. Correct marque is Land Rover.",
+        "fit": "Crop transparent padding to recommended bbox; object-fit:contain; do not stretch.",
+        "visually_verified": true
+      }
+    }
+  ],
+  "format_counts": {
+    "PNG": 17,
+    "SVG": 1
+  },
+  "dark_card_preview": "dark-card-contact-sheet.png"
+}
