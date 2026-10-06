@@ -9,6 +9,7 @@
     "db:generate": "drizzle-kit generate",
     "test": "node --experimental-sqlite scripts/test.mjs",
     "test:preview": "node --experimental-sqlite scripts/test-preview.mjs",
+    "test:staff": "node --experimental-sqlite scripts/test-accounts.mjs && node --experimental-sqlite scripts/test-staff.mjs && node --experimental-sqlite scripts/test-audit.mjs",
     "test:hosting": "node scripts/test-password.mjs && node --experimental-sqlite scripts/test-bootstrap.mjs && node scripts/test-hosted-media.mjs && node scripts/test-site-assets.mjs",
     "admin:provision": "node --experimental-sqlite scripts/provision-admin.mjs"
   },

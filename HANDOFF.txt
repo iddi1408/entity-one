@@ -1,6 +1,10 @@
 ENTITY-1 / OWNER HANDOFF
 
-Use EXCLUSIVE to sign in with the single existing administrator account. There is no public account creation or exclusive key. After login, ADMIN opens the dashboard.
+Use EXCLUSIVE to sign in with the existing owner account or an invited staff account. There is no public account creation or exclusive key. After login, ADMIN opens the dashboard.
+
+Access: add a staff username, choose a role and individual permissions, then privately share the generated temporary password shown once. Staff must choose a new password at first login. Temporary passwords expire after seven days. Access changes, disabling accounts and password resets revoke their existing sessions. The owner account is protected.
+
+Logs: view who did what and when, filter by actor/action/date, and check Discord delivery. Passwords and private listing-note values are excluded. The configured Discord webhook is a server secret. Failed notifications remain visible and can be retried by an access manager with log permission.
 
 Manage inventory and wanted listings, statuses, galleries, private notes, company content, contact details, social links, team members and partners. Media supports PNG, JPEG and WebP. Backups can restore previous saved content; Access manages active sessions. Private notes, drafts and unavailable listings stay outside the public collection.
 

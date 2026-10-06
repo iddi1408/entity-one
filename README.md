@@ -1,8 +1,18 @@
 # ENTITY-1
 
-A luxury automobile brokerage website with a private, single-administrator content workspace. Open **Exclusive → Log in**, then Administration. There is no public signup, account setup page, or separate access key.
+A luxury automobile brokerage website with a private staff workspace. Open **Exclusive → Log in**, then Administration. The existing owner account controls access; public signup and separate access keys are disabled.
 
-The source repository is [iddi1408/entity-one](https://github.com/iddi1408/entity-one) and is public. Sites hosts the application; no live URL is recorded here until deployment is confirmed. Do not commit account credentials, environment secrets, runtime data, or private content exports.
+The public website is [ENTITY-1](https://entity-one-atelier.apexfngg.chatgpt.site/). The source repository is [iddi1408/entity-one](https://github.com/iddi1408/entity-one) and is public. Sites hosts the application. Do not commit account credentials, environment secrets, runtime data, or private content exports.
+
+## Staff access and logs
+
+In **Access**, the owner can create a staff username, choose an Administrator, Manager, Editor or Viewer preset, and adjust individual permissions. Write permissions include their corresponding read permission. Backup access includes the content access necessary to view or restore a full snapshot. Staff cannot grant permissions they do not have, modify their own access, or modify the owner. Only the owner can manage privileged staff accounts.
+
+Creation and password resets generate a cryptographically random temporary password, displayed once to the operator. Deliver it privately to its recipient. It expires after seven days. The recipient must replace it at first login with a 12–128-character password before accessing administration. Only salted password hashes are stored. Disabling a staff account, changing its access or resetting its password revokes that account's sessions. Password changes revoke all prior sessions and issue a new session.
+
+The **Logs** tab records actor, action, time, affected records and changed field names, with actor/action/date filters and pagination. Historical events without an actor retain a legacy label. Passwords, tokens and private listing-note values are excluded. Accounts with `logs.read` can view logs; `access.manage` is also required to retry failed Discord delivery.
+
+Configure the Discord webhook only as the secret runtime variable **`DISCORD_AUDIT_WEBHOOK_URL`** in Sites. Never put the URL in content, browser code, Git, screenshots or public documentation. Newly recorded audit events enter a persistent D1 delivery queue and produce formatted Discord embeds with mentions disabled. Delivery is attempted after API requests, with bounded batches, rate-limit delays, retries and visible failure status. Pending retries resume on later API traffic or an explicit retry from Logs. Delivery is at least once: a lost acknowledgement can cause a duplicate notification with the same event ID. Local preview has no Discord secret by default.
 
 ## Architecture
 
@@ -33,6 +43,7 @@ npm run validate
 npm test
 npm run test:preview
 npm run test:hosting
+npm run test:staff
 ```
 
 These cover artifact structure, API authorization, content publication filtering, revision conflicts, backups, local media, password compatibility, administrator bootstrap, hosted media, and bundled R2 assets. Run them before deployment. Passing tests does not establish that a deployment has succeeded.
@@ -64,7 +75,7 @@ Save changes explicitly. Version checks prevent a stale editor from silently ove
 
 ## Account recovery
 
-There is no online password reset or additional administrator account. For the **local preview only**, stop the server and run `npm run admin:provision`, supplying bounded UTF-8 JSON containing the `username` and `password` fields through stdin. This replaces administrator record 1 and revokes local sessions. It does not change hosted D1 credentials. The script never prints passwords, salts, or hashes. Keep secret values out of arguments, shell history, source files, and screenshots.
+Staff passwords can be reset from Access by an authorized account manager. The owner remains protected from staff-management changes. For **local owner recovery only**, stop the server and run `npm run admin:provision`, supplying bounded UTF-8 JSON containing the `username` and `password` fields through stdin. This replaces administrator record 1 and revokes local sessions. It does not change hosted D1 credentials. The script never prints passwords, salts, or hashes. Keep secret values out of arguments, shell history, source files, and screenshots.
 
 Hosted account recovery requires a controlled operation against the hosted administrator record and session data. The initial bootstrap secrets cannot reset an existing account. Retain authorized hosting access separately from site administrator access.
 
@@ -86,6 +97,6 @@ Demo photographs and their Unsplash License credits are recorded in [car-photo-s
 
 ## Security scope
 
-Controls include a database-enforced single administrator, salted PBKDF2-SHA256 password hashes at 600,000 iterations, login limits, HttpOnly/SameSite cookies, same-origin and CSRF checks, bounded requests, validated media, explicit public-content allowlists, session revocation, a 30-minute inactivity timeout, and an eight-hour maximum session. HTTPS cookies use Secure; the local HTTP loopback cookie cannot. Uploaded draft media is available to authenticated administrators and becomes publicly retrievable only when referenced by published content.
+Controls include a protected owner account, server-enforced staff permissions, salted PBKDF2-SHA256 password hashes at 600,000 iterations, login limits, HttpOnly/SameSite cookies, same-origin and CSRF checks, bounded requests, validated media, explicit public-content allowlists, session revocation, a 30-minute inactivity timeout, and an eight-hour maximum session. HTTPS cookies use Secure; the local HTTP loopback cookie cannot. Uploaded draft media requires media permission and becomes publicly retrievable only when referenced by published content.
 
 These controls reduce risk; no application is guaranteed unhackable. There is no MFA or application-level database encryption. Protect hosting access, backups, deployment secrets, and the local computer; keep dependencies maintained and investigate unexpected activity. Deployment verification and ongoing operations remain necessary.

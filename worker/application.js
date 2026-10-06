@@ -2,6 +2,8 @@ import {passwordHash, PASSWORD_VERSION, PASSWORD_ITERATIONS} from './password.js
 import {bootstrapAdministrator} from './bootstrap.js';
 import {createHostedMediaRoutes} from './media.js';
 import {createHostedAssetRoutes} from './site-assets.js';
+import {getAccount, findAccount, publicUser, can, handleAccountRoutes} from './accounts.js';
+import {writeAudit, readAudit, flushAudit, retryAudit, sanitizeAuditDetail} from './audit.js';
 export {passwordHash, PASSWORD_VERSION, PASSWORD_ITERATIONS};
 
 const encoder = new TextEncoder();
@@ -55,11 +57,10 @@ function tokenFrom(request) {
   const values = (request.headers.get('Cookie') || '').split(';').map(s => s.trim()).filter(s => s.startsWith(name + '='));
   return values.length === 1 ? values[0].slice(name.length + 1) : '';
 }
-const administrator = env => db(env).prepare('SELECT username, salt, hash, hash_version FROM administrator WHERE id = 1').first();
 const credentialVersion = admin => digest(`${admin.salt}:${admin.hash}:${admin.hash_version}`);
 const csrfToken = token => digest('csrf:' + token);
-async function audit(env, action, sessionId = null, detail = {}) {
-  await db(env).prepare('INSERT INTO audit_log (at, action, session_id, detail) VALUES (?, ?, ?, ?)').bind(now(), action, sessionId, JSON.stringify(detail)).run();
+async function audit(env, action, sessionId = null, detail = {}, actor = null) {
+  await writeAudit(env, action, sessionId, detail, actor);
 }
 function sessionInfo(row, current = undefined) {
   return {id: row.session_id, createdAt: row.created_at, lastSeen: row.last_seen, idleExpiresAt: Math.min(row.last_seen + SESSION_IDLE, row.expires), expiresAt: row.expires, ...(current === undefined ? {} : {current})};
@@ -69,11 +70,11 @@ async function authenticated(request, env) {
   const tokenHash = await digest(token);
   const row = await db(env).prepare('SELECT * FROM sessions WHERE token_hash = ?').bind(tokenHash).first();
   if (!row) return null;
-  const time = now(), admin = await administrator(env);
-  if (row.expires <= time || row.last_seen + SESSION_IDLE <= time || !admin || admin.hash_version !== PASSWORD_VERSION || !equal(row.credential_version, await credentialVersion(admin))) {
+  const time = now(), admin = await getAccount(env, row.user_id);
+  if (row.expires <= time || row.last_seen + SESSION_IDLE <= time || !admin || admin.disabled || (admin.must_change_password && (!Number.isSafeInteger(admin.temp_expires_at) || admin.temp_expires_at <= time)) || admin.hash_version !== PASSWORD_VERSION || !equal(row.credential_version, await credentialVersion(admin))) {
     await db(env).batch([
       db(env).prepare('DELETE FROM sessions WHERE token_hash = ?').bind(tokenHash),
-      db(env).prepare('INSERT INTO audit_log (at, action, session_id, detail) VALUES (?, ?, ?, ?)').bind(time, 'session.expired', row.session_id, '{}')
+      db(env).prepare('INSERT INTO audit_log (at, action, session_id, detail, actor_id, actor_username, actor_role) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(time, 'session.expired', row.session_id, '{}', row.user_id, admin?.username || 'Former user', admin?.role || 'staff')
     ]);
     return null;
   }
@@ -83,37 +84,39 @@ async function authenticated(request, env) {
   row.last_seen = Math.max(row.last_seen, time);
   return {row, admin, token, tokenHash};
 }
-async function requireAdmin(request, env, mutation = false) {
+async function requireAdmin(request, env, mutation = false, permission = null, allowPending = false) {
   const session = await authenticated(request, env);
   if (!session) throw new HttpError(401, 'Please log in to manage the collection.');
   if (mutation && !equal(request.headers.get('X-CSRF-Token'), await csrfToken(session.token))) throw new HttpError(403, 'Your security token is missing or expired. Refresh the page and try again.');
+  if (!allowPending && session.admin.must_change_password) throw new HttpError(403, 'Choose your new password before accessing the dashboard.');
+  if (permission && !can(session.admin, permission)) throw new HttpError(403, 'Your account does not have permission for this action.');
   return session;
 }
 async function sessionPayload(session) {
-  return {authenticated: true, csrfToken: await csrfToken(session.token), user: {username: session.admin.username}, session: sessionInfo(session.row)};
+  return {authenticated: true, csrfToken: await csrfToken(session.token), user: publicUser(session.admin), mustChangePassword: !!session.admin.must_change_password, session: sessionInfo(session.row)};
 }
 async function newSession(request, env, admin, previous = null, rotated = false) {
   const token = random(), time = now(), tokenHash = await digest(token);
   // Explicit rotation retains the original absolute deadline; reauthentication starts a new one.
-  const row = {session_id: random(16), created_at: rotated ? previous.row.created_at : time, last_seen: time, expires: rotated ? previous.row.expires : time + SESSION_LIFETIME};
+  const row = {session_id: random(16), user_id: admin.id, created_at: rotated ? previous.row.created_at : time, last_seen: time, expires: rotated ? previous.row.expires : time + SESSION_LIFETIME};
   const presented = tokenFrom(request), statements = [db(env).prepare('DELETE FROM sessions WHERE expires <= ? OR last_seen <= ?').bind(time, time - SESSION_IDLE)];
   if (rotated) {
     // Recheck the old token inside the transaction: a concurrent revoke cannot be undone by rotation.
-    statements.push(db(env).prepare('INSERT INTO sessions (token_hash, session_id, created_at, last_seen, expires, credential_version) SELECT ?, ?, ?, ?, ?, ? FROM sessions WHERE token_hash = ? AND expires > ? AND last_seen > ?').bind(tokenHash, row.session_id, row.created_at, row.last_seen, row.expires, await credentialVersion(admin), previous.tokenHash, time, time - SESSION_IDLE));
+    statements.push(db(env).prepare('INSERT INTO sessions (token_hash, session_id, created_at, last_seen, expires, credential_version, user_id) SELECT ?, ?, ?, ?, ?, ?, ? FROM sessions WHERE token_hash = ? AND expires > ? AND last_seen > ?').bind(tokenHash, row.session_id, row.created_at, row.last_seen, row.expires, await credentialVersion(admin), admin.id, previous.tokenHash, time, time - SESSION_IDLE));
     statements.push(db(env).prepare('DELETE FROM sessions WHERE token_hash = ? AND changes() = 1').bind(previous.tokenHash));
-    statements.push(db(env).prepare("INSERT INTO audit_log (at, action, session_id, detail) SELECT ?, 'session.rotated', ?, '{}' WHERE changes() = 1").bind(time, row.session_id));
+    statements.push(db(env).prepare("INSERT INTO audit_log (at, action, session_id, detail, actor_id, actor_username, actor_role) SELECT ?, 'session.rotated', ?, '{}', ?, ?, ? WHERE changes() = 1").bind(time, row.session_id, admin.id, admin.username, admin.role));
     const results = await db(env).batch(statements);
     if (results[1].meta.changes !== 1) throw new HttpError(401, 'Your session has expired. Please log in again.');
     return json(await sessionPayload({row, admin, token}), 200, {'Set-Cookie': cookie(request, token, row.expires - time)});
   }
   if (presented) statements.push(db(env).prepare('DELETE FROM sessions WHERE token_hash = ?').bind(await digest(presented)));
-  statements.push(db(env).prepare('INSERT INTO sessions (token_hash, session_id, created_at, last_seen, expires, credential_version) VALUES (?, ?, ?, ?, ?, ?)').bind(tokenHash, row.session_id, row.created_at, row.last_seen, row.expires, await credentialVersion(admin)));
-  statements.push(db(env).prepare("INSERT INTO audit_log (at, action, session_id, detail) VALUES (?, 'login.succeeded', ?, '{}')").bind(time, row.session_id));
+  statements.push(db(env).prepare('INSERT INTO sessions (token_hash, session_id, created_at, last_seen, expires, credential_version, user_id) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(tokenHash, row.session_id, row.created_at, row.last_seen, row.expires, await credentialVersion(admin), admin.id));
+  statements.push(db(env).prepare("INSERT INTO audit_log (at, action, session_id, detail, actor_id, actor_username, actor_role) VALUES (?, 'login.succeeded', ?, '{}', ?, ?, ?)").bind(time, row.session_id, admin.id, admin.username, admin.role));
   await db(env).batch(statements);
   return json(await sessionPayload({row, admin, token}), 200, {'Set-Cookie': cookie(request, token, row.expires - time)});
 }
-async function throttle(request, env) {
-  const buckets = [await digest('login:ip:' + (request.headers.get('CF-Connecting-IP') || 'local')), 'login:administrator'];
+async function throttle(request, env, username) {
+  const buckets = [await digest('login:ip:' + (request.headers.get('CF-Connecting-IP') || 'local')), await digest('login:account:' + username.toLowerCase())];
   const time = now();
   for (const [index, bucket] of buckets.entries()) {
     await db(env).prepare('INSERT INTO rate_limits (bucket, attempts, expires) VALUES (?, 1, ?) ON CONFLICT(bucket) DO UPDATE SET attempts = CASE WHEN expires <= ? THEN 1 ELSE attempts + 1 END, expires = CASE WHEN expires <= ? THEN ? ELSE expires END').bind(bucket, time + 900, time, time, time + 900).run();
@@ -190,9 +193,47 @@ function publicContent(content) {
   result.listings = result.listings.filter(listing => listing.type === 'inventory' ? ['available', 'reserved'].includes(listing.status) : listing.status === 'active').map(({internalNotes, ...listing}) => listing);
   return result;
 }
+function visibleContent(content, account) {
+  if (!account || account.must_change_password) return publicContent(content);
+  const result = validateContent(content);
+  result.listings = result.listings.flatMap(listing => {
+    if (can(account, listing.type + '.read')) return [listing];
+    const visible = listing.type === 'inventory' ? ['available', 'reserved'].includes(listing.status) : listing.status === 'active';
+    const {internalNotes, ...safe} = listing;
+    return visible ? [safe] : [];
+  });
+  return result;
+}
+function permittedContent(input, existing, account) {
+  const clean = validateContent(input), visible = visibleContent(existing, account);
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  if (!can(account, 'content.write')) {
+    if (!same(clean.settings, visible.settings)) throw new HttpError(403, 'You cannot change site content.');
+    clean.settings = existing.settings;
+  }
+  for (const type of ['inventory', 'wanted']) {
+    if (can(account, type + '.write')) continue;
+    if (!same(clean.listings.filter(item => item.type === type), visible.listings.filter(item => item.type === type))) throw new HttpError(403, `You cannot change ${type} listings.`);
+    clean.listings = [...clean.listings.filter(item => item.type !== type), ...existing.listings.filter(item => item.type === type)];
+  }
+  return validateContent(clean);
+}
+function contentChanges(before, after) {
+  const previous = new Map(before.listings.map(item => [item.id, item]));
+  const next = new Map(after.listings.map(item => [item.id, item]));
+  const changes = [];
+  for (const id of new Set([...previous.keys(), ...next.keys()])) {
+    const a = previous.get(id), b = next.get(id), item = b || a;
+    const fields = a && b ? [...new Set([...Object.keys(a), ...Object.keys(b)])].filter(key => JSON.stringify(a[key]) !== JSON.stringify(b[key])) : [];
+    if (!a || !b || fields.length) changes.push({id, type:item.type, brand:item.brand, model:item.model, status:item.status, action:!a ? 'created' : !b ? 'removed' : 'updated', fields});
+  }
+  return {changes, settingsFields:Object.keys(after.settings).filter(key => JSON.stringify(before.settings[key]) !== JSON.stringify(after.settings[key]))};
+}
 function revision(value) { if (!Number.isSafeInteger(value) || value < 0 || value >= Number.MAX_SAFE_INTEGER) throw new HttpError(400, 'Invalid content version.'); return value; }
 async function saveContent(env, input, session, action = 'content.save', restoredFrom = undefined) {
-  const expected = revision(input.revision), content = validateContent(input.content), existing = await readContent(env);
+  const expected = revision(input.revision), existing = await readContent(env);
+  if (!['inventory.write','wanted.write','content.write'].some(permission => can(session.admin, permission))) throw new HttpError(403, 'Your account cannot edit content.');
+  const content = permittedContent(input.content, existing.content, session.admin);
   if (existing.revision !== expected) throw new HttpError(409, 'The collection changed in another session. Refresh the page before saving.');
   const store = db(env), time = now(), next = expected + 1;
   const write = expected === 0
@@ -201,7 +242,7 @@ async function saveContent(env, input, session, action = 'content.save', restore
   // D1 batch is transactional. changes() ties audit and backup writes to the successful CAS.
   const results = await store.batch([
     write,
-    store.prepare('INSERT INTO audit_log (at, action, session_id, detail) SELECT ?, ?, ?, ? WHERE changes() = 1').bind(time, action, session.row.session_id, JSON.stringify({revision: next, ...(restoredFrom === undefined ? {} : {restoredFrom})})),
+    store.prepare('INSERT INTO audit_log (at, action, session_id, detail, actor_id, actor_username, actor_role) SELECT ?, ?, ?, ?, ?, ?, ? WHERE changes() = 1').bind(time, action, session.row.session_id, JSON.stringify(sanitizeAuditDetail({revision: next, ...contentChanges(existing.content, content), ...(restoredFrom === undefined ? {} : {restoredFrom})})), session.admin.id, session.admin.username, session.admin.role),
     store.prepare('INSERT INTO content_backups (revision, body, created_at, action) SELECT ?, ?, ?, ? WHERE changes() = 1').bind(expected, JSON.stringify(existing.content), time, action),
     store.prepare('DELETE FROM content_backups WHERE revision NOT IN (SELECT revision FROM content_backups ORDER BY revision DESC LIMIT 20)')
   ]);
@@ -214,20 +255,49 @@ async function saveContent(env, input, session, action = 'content.save', restore
 }
 async function overview(env, session) {
   const current = await readContent(env), time = now(), version = await credentialVersion(session.admin);
-  const rows = (await db(env).prepare('SELECT session_id, created_at, last_seen, expires FROM sessions WHERE expires > ? AND last_seen > ? AND credential_version = ? ORDER BY created_at DESC').bind(time, time - SESSION_IDLE, version).all()).results;
-  const recent = (await db(env).prepare('SELECT id, at, action, session_id, detail FROM audit_log ORDER BY id DESC LIMIT 50').all()).results;
+  const rows = (await db(env).prepare('SELECT session_id, created_at, last_seen, expires FROM sessions WHERE user_id = ? AND expires > ? AND last_seen > ? AND credential_version = ? ORDER BY created_at DESC').bind(session.admin.id, time, time - SESSION_IDLE, version).all()).results;
+  const recent = can(session.admin, 'logs.read') ? (await db(env).prepare('SELECT id, at, action, session_id, detail, actor_id, actor_username, actor_role FROM audit_log ORDER BY id DESC LIMIT 50').all()).results : [];
   const last = await db(env).prepare("SELECT at, action, detail FROM audit_log WHERE action IN ('content.save', 'content.restore') ORDER BY id DESC LIMIT 1").first();
   const counts = {total: current.content.listings.length, inventory: {total: 0, available: 0, reserved: 0, sold: 0, draft: 0}, wanted: {total: 0, active: 0, fulfilled: 0, draft: 0}};
-  for (const listing of current.content.listings) { counts[listing.type].total++; counts[listing.type][listing.status]++; }
-  return json({user: {username: session.admin.username}, session: sessionInfo(session.row), activeSessions: rows.map(row => sessionInfo(row, row.session_id === session.row.session_id)), revision: current.revision, lastSave: last ? {revision: JSON.parse(last.detail).revision, at: last.at, action: last.action} : null, counts, recentAudit: recent.map(row => ({id: row.id, at: row.at, action: row.action, sessionId: row.session_id, detail: JSON.parse(row.detail)}))});
+  const visible = visibleContent(current.content, session.admin); counts.total = visible.listings.length;
+  for (const listing of visible.listings) { counts[listing.type].total++; counts[listing.type][listing.status]++; }
+  return json({user: publicUser(session.admin), session: sessionInfo(session.row), activeSessions: rows.map(row => sessionInfo(row, row.session_id === session.row.session_id)), revision: current.revision, lastSave: last ? {revision: JSON.parse(last.detail).revision, at: last.at, action: last.action} : null, counts, recentAudit: recent.map(row => ({id: row.id, at: row.at, action: row.action, actor:{id:row.actor_id,username:row.actor_username || 'Legacy administrator',role:row.actor_role},sessionId: row.session_id, detail: JSON.parse(row.detail)}))});
+}
+async function changePassword(request, env) {
+  const session = await requireAdmin(request, env, true, null, true);
+  const input = await body(request, 8192);
+  if (typeof input.currentPassword !== 'string' || !input.currentPassword || input.currentPassword.length > 1024 || typeof input.newPassword !== 'string' || input.newPassword.length < 12 || input.newPassword.length > 128 || input.newPassword !== input.confirmPassword) throw new HttpError(400, 'Choose a password of 12–128 characters and confirm it.');
+  if (input.newPassword.toLowerCase() === session.admin.username.toLowerCase()) throw new HttpError(400, 'Your password cannot be your username.');
+  await throttle(request, env, 'password:' + session.admin.id);
+  if (!equal(await passwordHash(input.currentPassword, session.admin.salt), session.admin.hash)) throw new HttpError(400, 'Your current password is incorrect.');
+  if (equal(await passwordHash(input.newPassword, session.admin.salt), session.admin.hash)) throw new HttpError(400, 'Choose a different password from your temporary or current password.');
+  const salt = random(), hash = await passwordHash(input.newPassword, salt), time = now(), store = db(env);
+  const constraint = ' AND EXISTS (SELECT 1 FROM sessions WHERE token_hash = ? AND user_id = ? AND expires > ? AND last_seen > ?)';
+  const write = session.admin.id === 'owner'
+    ? store.prepare('UPDATE administrator SET salt = ?, hash = ?, hash_version = ? WHERE id = 1 AND hash = ?' + constraint).bind(salt, hash, PASSWORD_VERSION, session.admin.hash, session.tokenHash, session.admin.id, time, time - SESSION_IDLE)
+    : store.prepare('UPDATE staff_users SET salt = ?, hash = ?, hash_version = ?, must_change_password = 0, temp_expires_at = NULL, updated_at = ? WHERE id = ? AND hash = ? AND disabled = 0 AND (must_change_password = 0 OR temp_expires_at > ?)' + constraint).bind(salt, hash, PASSWORD_VERSION, time, session.admin.id, session.admin.hash, time, session.tokenHash, session.admin.id, time, time - SESSION_IDLE);
+  const results = await store.batch([
+    write,
+    store.prepare("INSERT INTO audit_log (at, action, session_id, detail, actor_id, actor_username, actor_role) SELECT ?, 'account.password_changed', ?, '{}', ?, ?, ? WHERE changes() = 1").bind(time, session.row.session_id, session.admin.id, session.admin.username, session.admin.role),
+    store.prepare('DELETE FROM sessions WHERE user_id = ? AND changes() > 0').bind(session.admin.id),
+  ]);
+  if (results[0].meta.changes !== 1) throw new HttpError(409, 'Your account changed. Please sign in again.');
+  return newSession(request, env, await getAccount(env, session.admin.id));
 }
 export default {
   async fetch(request, env, ctx) {
     try {
       const address = new URL(request.url), path = address.pathname.replace(/\/$/, '') || '/';
-      const mediaResponse = await createHostedMediaRoutes({request, env, path, authenticated: () => authenticated(request, env), readContent: () => readContent(env), publicContent, json, audit: (action, id, detail) => audit(env, action, id, detail), HttpError});
+      const mediaAuth = async () => {
+        const session = await authenticated(request, env);
+        const permission = request.method === 'POST' ? 'media.write' : 'media.read';
+        if (!session || (!path.startsWith('/api/') && (session.admin.must_change_password || !can(session.admin, permission)))) return null;
+        if (session.admin.must_change_password || !can(session.admin, permission)) throw new HttpError(403, 'You do not have permission to manage media.');
+        return session;
+      };
+      const mediaResponse = await createHostedMediaRoutes({request, env, path, authenticated: mediaAuth, readContent: () => readContent(env), publicContent, json, audit: async (action, id, detail) => { const row = await db(env).prepare('SELECT user_id FROM sessions WHERE session_id = ?').bind(id).first(); await audit(env, action, id, detail, row ? await getAccount(env, row.user_id) : null); }, HttpError});
       if (mediaResponse) return mediaResponse;
-      const assetResponse = await createHostedAssetRoutes({request, env, path, assets: STATIC_ASSETS, authenticated: () => authenticated(request, env), requireAdmin: mutation => requireAdmin(request, env, mutation), security, json, HttpError});
+      const assetResponse = await createHostedAssetRoutes({request, env, path, assets: STATIC_ASSETS, authenticated: () => authenticated(request, env), requireAdmin: mutation => requireAdmin(request, env, mutation, 'access.manage'), security, json, HttpError});
       if (assetResponse) return assetResponse;
       if (path.startsWith('/api/')) {
         if (address.protocol !== 'https:' && !['localhost', '127.0.0.1', '[::1]'].includes(address.hostname)) throw new HttpError(403, 'A secure connection is required.');
@@ -240,21 +310,38 @@ export default {
           return json(session ? await sessionPayload(session) : {authenticated: false});
         }
         if (path === '/api/content' && request.method === 'GET') {
-          const result = await readContent(env); if (!await authenticated(request, env)) result.content = publicContent(result.content); return json(result);
+          const result = await readContent(env), session = await authenticated(request, env); result.content = visibleContent(result.content, session?.admin); return json(result);
         }
         if (path === '/api/login' && request.method === 'POST') {
-          const bucket = await throttle(request, env), input = credentialInput(await body(request, 8192));
-          const admin = await administrator(env) || await bootstrapAdministrator(env, input);
+          const input = credentialInput(await body(request, 8192)), bucket = await throttle(request, env, input.username);
+          let admin = await findAccount(env, input.username);
+          if (!admin) { await bootstrapAdministrator(env, input); admin = await findAccount(env, input.username); }
           const hash = await passwordHash(input.password, admin?.salt || '0000000000000000000000000000000000000000000000000000000000000000');
-          if (!admin || !equal(hash, admin.hash) || !equal(input.username, admin.username) || admin.hash_version !== PASSWORD_VERSION) {
-            await audit(env, 'login.failed'); throw new HttpError(401, 'The username or password is incorrect.');
+          if (!admin || admin.disabled || (admin.must_change_password && (!Number.isSafeInteger(admin.temp_expires_at) || admin.temp_expires_at <= now())) || !equal(hash, admin.hash) || !equal(input.username.toLowerCase(), admin.username.toLowerCase()) || admin.hash_version !== PASSWORD_VERSION) {
+            await audit(env, 'login.failed', null, {username:input.username}, {id:null,username:input.username,role:'Unverified sign-in'}); throw new HttpError(401, 'The username or password is incorrect.');
           }
           await db(env).prepare('DELETE FROM rate_limits WHERE bucket = ?').bind(bucket).run();
           return await newSession(request, env, admin);
         }
+        if (path === '/api/account/password' && request.method === 'POST') return await changePassword(request, env);
+        if (path === '/api/users' || path.startsWith('/api/users/')) {
+          const session = await requireAdmin(request, env, request.method !== 'GET', 'access.manage');
+          const result = await handleAccountRoutes({request, env, path, session, body, json, HttpError, audit:(action,id,detail,actor) => audit(env,action,id,detail,actor)});
+          if (result) return result;
+        }
+        if (path === '/api/logs' && request.method === 'GET') {
+          await requireAdmin(request, env, false, 'logs.read'); return json(await readAudit(env, address.searchParams));
+        }
+        if (path === '/api/logs/retry' && request.method === 'POST') {
+          const session = await requireAdmin(request, env, true, 'access.manage');
+          if (!can(session.admin, 'logs.read')) throw new HttpError(403, 'Your account cannot read logs.');
+          await body(request, 4096); const result = await retryAudit(env);
+          await audit(env, 'logs.delivery_retried', session.row.session_id, {}, session.admin);
+          await flushAudit(env); return json(result);
+        }
         if (path === '/api/admin/overview' && request.method === 'GET') return await overview(env, await requireAdmin(request, env));
         if (path === '/api/backups' && request.method === 'GET') {
-          await requireAdmin(request, env);
+          await requireAdmin(request, env, false, 'backups.read');
           const rows = (await db(env).prepare('SELECT revision, body, created_at, action FROM content_backups ORDER BY revision DESC LIMIT 20').all()).results;
           return json({backups: rows.map(row => ({revision: row.revision, createdAt: row.created_at, action: row.action, listingsCount: validateContent(JSON.parse(row.body)).listings.length}))});
         }
@@ -262,7 +349,7 @@ export default {
           const session = await requireAdmin(request, env, true); return await saveContent(env, await body(request), session);
         }
         if (path === '/api/backups/restore' && request.method === 'POST') {
-          const session = await requireAdmin(request, env, true), input = await body(request, 4096), selected = revision(input.backupRevision);
+          const session = await requireAdmin(request, env, true, 'backups.restore'), input = await body(request, 4096), selected = revision(input.backupRevision);
           revision(input.revision);
           const backup = await db(env).prepare('SELECT body FROM content_backups WHERE revision = ?').bind(selected).first();
           if (!backup) throw new HttpError(404, 'That backup is no longer available.');
@@ -272,8 +359,8 @@ export default {
           const session = await requireAdmin(request, env, true); await body(request, 4096);
           const time = now();
           const results = await db(env).batch([
-            db(env).prepare('DELETE FROM sessions WHERE token_hash != ? AND EXISTS (SELECT 1 FROM sessions WHERE token_hash = ? AND expires > ? AND last_seen > ?)').bind(session.tokenHash, session.tokenHash, time, time - SESSION_IDLE),
-            db(env).prepare("INSERT INTO audit_log (at, action, session_id, detail) SELECT ?, 'sessions.revoked', ?, json_object('count', changes()) WHERE EXISTS (SELECT 1 FROM sessions WHERE token_hash = ? AND expires > ? AND last_seen > ?)").bind(time, session.row.session_id, session.tokenHash, time, time - SESSION_IDLE)
+            db(env).prepare('DELETE FROM sessions WHERE token_hash != ? AND user_id = ? AND EXISTS (SELECT 1 FROM sessions WHERE token_hash = ? AND expires > ? AND last_seen > ?)').bind(session.tokenHash, session.admin.id, session.tokenHash, time, time - SESSION_IDLE),
+            db(env).prepare("INSERT INTO audit_log (at, action, session_id, detail, actor_id, actor_username, actor_role) SELECT ?, 'sessions.revoked', ?, json_object('count', changes()), ?, ?, ? WHERE EXISTS (SELECT 1 FROM sessions WHERE token_hash = ? AND expires > ? AND last_seen > ?)").bind(time, session.row.session_id, session.admin.id, session.admin.username, session.admin.role, session.tokenHash, time, time - SESSION_IDLE)
           ]);
           if (results[1].meta.changes !== 1) throw new HttpError(401, 'Your session has expired. Please log in again.');
           return json({revoked: results[0].meta.changes});
@@ -282,10 +369,10 @@ export default {
           const session = await requireAdmin(request, env, true); await body(request, 4096); return await newSession(request, env, session.admin, session, true);
         }
         if (path === '/api/logout' && request.method === 'POST') {
-          const session = await requireAdmin(request, env, true); await body(request, 4096);
+          const session = await requireAdmin(request, env, true, null, true); await body(request, 4096);
           await db(env).batch([
             db(env).prepare('DELETE FROM sessions WHERE token_hash = ?').bind(session.tokenHash),
-            db(env).prepare("INSERT INTO audit_log (at, action, session_id, detail) VALUES (?, 'session.logged_out', ?, '{}')").bind(now(), session.row.session_id)
+            db(env).prepare("INSERT INTO audit_log (at, action, session_id, detail, actor_id, actor_username, actor_role) VALUES (?, 'session.logged_out', ?, '{}', ?, ?, ?)").bind(now(), session.row.session_id, session.admin.id, session.admin.username, session.admin.role)
           ]);
           return json({authenticated: false}, 200, {'Set-Cookie': cookie(request, '', 0)});
         }
@@ -305,6 +392,8 @@ export default {
       if (error instanceof HttpError) return json({error: error.message}, error.status, error.status === 429 ? {'Retry-After': '900'} : {});
       console.error('ENTITY-1 request failed', error?.name);
       return json({error: 'The service is temporarily unavailable. Please try again.'}, 503);
+    } finally {
+      if (env.DISCORD_AUDIT_WEBHOOK_URL && new URL(request.url).pathname.startsWith('/api/') && ctx?.waitUntil) ctx.waitUntil(flushAudit(env).catch(() => {}));
     }
   }
 };

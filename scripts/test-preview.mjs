@@ -163,7 +163,8 @@ try {
   for (const address of ['198.51.100.1', '198.51.100.2']) await request('/api/login', {method: 'POST', value: {...credentials, password: randomBytes(32).toString('hex')}, headers: {'CF-Connecting-IP': address, 'X-Forwarded-For': address}});
   const rateLimits = (await DB.prepare('SELECT bucket FROM rate_limits').all()).results.map(row => row.bucket);
   const localBucket = createHash('sha256').update('login:ip:127.0.0.1').digest('hex');
-  assert.deepEqual(rateLimits.sort(), [localBucket, 'login:administrator'].sort(), 'Client headers cannot choose the rate-limit identity');
+  const accountBucket = createHash('sha256').update('login:account:' + credentials.username.toLowerCase()).digest('hex');
+  assert.deepEqual(rateLimits.sort(), [localBucket, accountBucket].sort(), 'Client headers cannot choose the rate-limit identity');
   assert.equal((await request('/api/logout', {method: 'POST', headers: auth, value: {}})).response.status, 200);
   assert.equal((await upload(auth)).response.status, 401);
   assert.equal((await request('/api/media', {headers: auth})).response.status, 401);

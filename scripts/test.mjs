@@ -122,7 +122,10 @@ try {
   assert.deepEqual((await request('/api/content')).data.content, before.content, 'Restore produces a new revision containing the old public content');
   assert.equal((await request('/api/backups', 'GET', undefined, auth.headers)).data.backups[0].revision, 1);
   overview = (await request('/api/admin/overview', 'GET', undefined, auth.headers)).data;
-  assert.deepEqual(overview.recentAudit.find(event => event.action === 'content.restore').detail, {revision: 2, restoredFrom: 0});
+  const restoreAudit = overview.recentAudit.find(event => event.action === 'content.restore');
+  assert.equal(restoreAudit.detail.revision, 2); assert.equal(restoreAudit.detail.restoredFrom, 0);
+  assert.equal(restoreAudit.actor.username, credentials.username);
+  assert.ok(restoreAudit.detail.changes.some(change => change.action === 'removed'));
 
   for (const change of [
     c => { c.settings.heroVideo = 'javascript:alert(1)'; },
@@ -245,7 +248,7 @@ try {
   const limited = await request('/api/login', 'POST', credentials);
   assert.equal(limited.response.status, 429); assert.equal(limited.response.headers.get('Retry-After'), '900');
   await DB.prepare('DELETE FROM rate_limits').run();
-  await DB.prepare('INSERT INTO rate_limits (bucket, attempts, expires) VALUES (?, ?, ?)').bind('login:administrator', 40, seconds() + 900).run();
-  assert.equal((await request('/api/login', 'POST', credentials, {'CF-Connecting-IP': '198.51.100.9'})).response.status, 429, 'Global single-account limit survives IP changes');
+  await DB.prepare('INSERT INTO rate_limits (bucket, attempts, expires) VALUES (?, ?, ?)').bind(sha('login:account:' + credentials.username.toLowerCase()), 40, seconds() + 900).run();
+  assert.equal((await request('/api/login', 'POST', credentials, {'CF-Connecting-IP': '198.51.100.9'})).response.status, 429, 'Per-account limit survives IP changes');
   console.log('PASS: password-only fixed administrator, PBKDF2 recipe, secure cookies, CSRF/origin/body bounds, public allowlists/status filtering, atomic optimistic saves, backup restore/retention/rollback, safe audit, rotation/revocation/expiry and login limits.');
 } finally { DB.close(); }

@@ -15,6 +15,13 @@
       "when": 1791207542118,
       "tag": "0001_private_administrator",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1791306897393,
+      "tag": "0002_staff_accounts",
+      "breakpoints": true
     }
   ]
 }

@@ -104,6 +104,25 @@ try {
   }
   for (const route of ['/', '/inventory', '/wanted', '/about', '/contact', '/exclusive', '/admin', '/app.js', '/favicon.svg']) assert.equal((await call(route, {anonymous:true})).status, 200, route);
   if (publicData.content.settings.heroImage) assert.equal((await call(publicData.content.settings.heroImage, {method:'HEAD', anonymous:true})).status, 200, 'Hero image');
+  if (config.staffCheck) {
+    const accounts = await json('/api/users');
+    assert.ok(accounts.users.some(user => user.id === 'owner' && user.username === config.username));
+    assert.ok(accounts.roles.length >= 4 && accounts.permissions.length >= 12);
+    for (const route of ['/api/users', '/api/logs']) assert.equal((await call(route, {anonymous:true})).status, 401);
+    assert.equal((await call('/api/users', {method:'POST', value:{}, omitCsrf:true})).status, 403);
+    let logStatus;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const logs = await json('/api/logs');
+      assert.equal(logs.delivery.configured, true, 'Discord configured');
+      const event = logs.events.find(item => item.action === 'login.succeeded' && item.actor.username === config.username);
+      assert.ok(event, 'Login audit has an actor');
+      logStatus = event.delivery;
+      if (logStatus.status === 'sent' || logStatus.status === 'failed') break;
+      await new Promise(resolve => setTimeout(resolve, 3000));
+    }
+    assert.equal(logStatus.status, 'sent', 'Discord delivery: ' + (logStatus.error || logStatus.status));
+    console.log('PASS: hosted owner access, staff permissions, protected logs, actor attribution and confirmed Discord delivery.');
+  }
   await json('/api/logout', {method:'POST', value:{}});
   assert.equal((await json('/api/session')).authenticated, false);
   console.log(`PASS: hosted login, protected admin APIs, CSRF, content, hero and ${assets.length} full-quality assets.`);

@@ -141,6 +141,8 @@ export async function createPreviewServer({publicDirectory = path.resolve('publi
         if (!['GET', 'POST'].includes(request.method)) throw new PreviewError(405, 'Method not allowed.');
         const current = await session();
         if (!current.authenticated) throw new PreviewError(401, 'Log in to manage media.');
+        const permission = request.method === 'POST' ? 'media.write' : 'media.read';
+        if (current.mustChangePassword || !current.user?.permissions?.includes(permission)) throw new PreviewError(403, 'You do not have permission to manage media.');
         if (request.method === 'GET') return json({media: await media.list()});
         exactOrigin(request, origin);
         if (!equalToken(request.headers['x-csrf-token'], current.csrfToken)) throw new PreviewError(403, 'Your security token is missing or expired. Refresh the page.');
@@ -154,9 +156,9 @@ export async function createPreviewServer({publicDirectory = path.resolve('publi
         const file = entries[0][1];
         if (!file.size || file.size > MAX_IMAGE_BYTES) throw new PreviewError(413, 'Images must be 8 MiB or smaller.');
         const latest = await session();
-        if (!latest.authenticated || !equalToken(current.csrfToken, latest.csrfToken)) throw new PreviewError(401, 'Your session has expired. Log in again.');
+        if (!latest.authenticated || latest.mustChangePassword || !latest.user?.permissions?.includes('media.write') || !equalToken(current.csrfToken, latest.csrfToken)) throw new PreviewError(401, 'Your session has expired. Log in again.');
         const item = await media.save(Buffer.from(await file.arrayBuffer()), file.name);
-        await DB.prepare('INSERT INTO audit_log (at, action, session_id, detail) VALUES (?, ?, ?, ?)').bind(Math.floor(Date.now() / 1000), 'media.upload', latest.session.id, JSON.stringify({id: item.id, size: item.size})).run();
+        await DB.prepare('INSERT INTO audit_log (at, action, session_id, detail, actor_id, actor_username, actor_role) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(Math.floor(Date.now() / 1000), 'media.upload', latest.session.id, JSON.stringify({id: item.id, size: item.size}), latest.user.id, latest.user.username, latest.user.role).run();
         return json({media: item}, 201);
       }
       if (pathname.startsWith('/api/')) {
@@ -172,7 +174,7 @@ export async function createPreviewServer({publicDirectory = path.resolve('publi
       if (pathname.startsWith('/assets/uploads/')) {
         const filename = pathname.slice('/assets/uploads/'.length);
         const current = await session();
-        if (!current.authenticated && !isReferenced(await publicContent(), pathname, origin)) throw new PreviewError(404, 'Image not found.');
+        if ((!current.authenticated || current.mustChangePassword || !current.user?.permissions?.includes('media.read')) && !isReferenced(await publicContent(), pathname, origin)) throw new PreviewError(404, 'Image not found.');
         const record = await media.read(filename, request.method === 'HEAD');
         return send(200, record.bytes, {'Content-Type': record.contentType, 'Content-Length': record.item.size, 'Content-Disposition': `inline; filename="${filename}"`});
       }
