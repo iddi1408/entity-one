@@ -6,7 +6,7 @@ export const PERMISSIONS = Object.freeze([
   ['content.read', 'View site content'], ['content.write', 'Edit site content'],
   ['media.read', 'View media'], ['media.write', 'Upload media'],
   ['backups.read', 'View backups'], ['backups.restore', 'Restore backups'],
-  ['logs.read', 'View activity'], ['access.manage', 'Manage staff access']
+  ['logs.read', 'View activity'], ['analytics.read', 'View website analytics'], ['access.manage', 'Manage staff access']
 ].map(([id, label]) => Object.freeze({id, label})));
 const permissionIds = PERMISSIONS.map(permission => permission.id);
 const permissionSet = new Set(permissionIds);

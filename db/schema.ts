@@ -46,3 +46,23 @@ export const contentBackups = sqliteTable('content_backups', {
   revision: integer('revision').primaryKey(), body: text('body').notNull(),
   createdAt: integer('created_at').notNull(), action: text('action').notNull()
 });
+
+export const analyticsEvents = sqliteTable('analytics_events', {
+  id: text('id').primaryKey(), visitId: text('visit_id').notNull(), at: integer('at').notNull(), day: text('day').notNull(),
+  type: text('type').notNull(), path: text('path').notNull(), target: text('target').notNull(),
+  country: text('country').notNull(), device: text('device').notNull(), browser: text('browser').notNull(), source: text('source').notNull(),
+  carLabel: text('car_label').notNull().default(''), carBrand: text('car_brand').notNull().default(''),
+  carRegion: text('car_region').notNull().default(''), carType: text('car_type').notNull().default('')
+}, table => [
+  index('idx_analytics_at').on(table.at), index('idx_analytics_country_at').on(table.country, table.at),
+  index('idx_analytics_device_at').on(table.device, table.at), index('idx_analytics_visit').on(table.visitId, table.type, table.at),
+  check('analytics_event_type', sql`${table.type} IN ('page_view','click','car_view','region_click','brand_click','enquiry')`),
+  check('analytics_public_path', sql`${table.path} IN ('/','/inventory','/wanted','/about','/contact')`),
+  check('analytics_device', sql`${table.device} IN ('desktop','mobile','tablet','unknown')`)
+]);
+export const analyticsRateLimits = sqliteTable('analytics_rate_limits', {
+  bucket: text('bucket').primaryKey(), eventCount: integer('event_count').notNull(), expires: integer('expires').notNull()
+}, table => [index('idx_analytics_rate_expiry').on(table.expires)]);
+export const analyticsMetadata = sqliteTable('analytics_metadata', {
+  id: text('id').primaryKey(), startedAt: integer('started_at').notNull()
+}, table => [check('analytics_metadata_singleton', sql`${table.id} = 'main'`)]);

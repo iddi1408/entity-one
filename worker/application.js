@@ -4,6 +4,7 @@ import {createHostedMediaRoutes} from './media.js';
 import {createHostedAssetRoutes} from './site-assets.js';
 import {getAccount, findAccount, publicUser, can, handleAccountRoutes} from './accounts.js';
 import {writeAudit, readAudit, flushAudit, retryAudit, sanitizeAuditDetail} from './audit.js';
+import {collectAnalytics, readAnalytics} from './analytics.js';
 export {passwordHash, PASSWORD_VERSION, PASSWORD_ITERATIONS};
 
 const encoder = new TextEncoder();
@@ -305,6 +306,17 @@ export default {
         if (path === '/api/setup' || path === '/api/commit') throw new HttpError(404, 'This service does not exist.');
         if (!['GET', 'POST', 'PUT'].includes(request.method)) throw new HttpError(405, 'Method not allowed.');
         if (request.method !== 'GET') sameOrigin(request);
+        if (path === '/api/analytics/events' && request.method === 'POST') {
+          // Staff browsing must never inflate the public audience figures.
+          if (await authenticated(request, env)) return json({recorded: 0, ignored: true}, 202);
+          const input = await body(request, 16384);
+          const content = publicContent((await readContent(env)).content);
+          return json(await collectAnalytics({request, env, input, content, HttpError}), 202);
+        }
+        if (path === '/api/analytics' && request.method === 'GET') {
+          await requireAdmin(request, env, false, 'analytics.read');
+          return json(await readAnalytics(env, address.searchParams, HttpError));
+        }
         if (path === '/api/session' && request.method === 'GET') {
           const session = await authenticated(request, env);
           return json(session ? await sessionPayload(session) : {authenticated: false});
@@ -389,11 +401,11 @@ export default {
       const bytes = Uint8Array.from(atob(asset.bytes), c => c.charCodeAt(0));
       return new Response(request.method === 'HEAD' ? null : bytes, {headers: {...security, 'Content-Type': asset.type, 'Cache-Control': file.startsWith('/assets/') ? 'public, max-age=3600' : 'no-cache'}});
     } catch (error) {
-      if (error instanceof HttpError) return json({error: error.message}, error.status, error.status === 429 ? {'Retry-After': '900'} : {});
+      if (error instanceof HttpError) return json({error: error.message}, error.status, error.status === 429 ? {'Retry-After': String(error.retryAfter || 900)} : {});
       console.error('ENTITY-1 request failed', error?.name);
       return json({error: 'The service is temporarily unavailable. Please try again.'}, 503);
     } finally {
-      if (env.DISCORD_AUDIT_WEBHOOK_URL && new URL(request.url).pathname.startsWith('/api/') && ctx?.waitUntil) ctx.waitUntil(flushAudit(env).catch(() => {}));
+      if (env.DISCORD_AUDIT_WEBHOOK_URL && new URL(request.url).pathname.startsWith('/api/') && new URL(request.url).pathname !== '/api/analytics/events' && ctx?.waitUntil) ctx.waitUntil(flushAudit(env).catch(() => {}));
     }
   }
 };

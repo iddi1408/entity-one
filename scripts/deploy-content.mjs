@@ -104,6 +104,21 @@ try {
   }
   for (const route of ['/', '/inventory', '/wanted', '/about', '/contact', '/exclusive', '/admin', '/app.js', '/favicon.svg']) assert.equal((await call(route, {anonymous:true})).status, 200, route);
   if (publicData.content.settings.heroImage) assert.equal((await call(publicData.content.settings.heroImage, {method:'HEAD', anonymous:true})).status, 200, 'Hero image');
+  if (config.analyticsCheck) {
+    const report = await json('/api/analytics');
+    for (const key of ['visits','pageViews','clicks','carViews','regionClicks','brandClicks','enquiries']) assert.equal(typeof report.totals[key], 'number');
+    assert.equal(report.range.timezone, 'UTC');
+    assert.equal(report.meta.retentionDays, 90);
+    assert.ok(Array.isArray(report.trend) && Array.isArray(report.cars) && Array.isArray(report.countries));
+    assert.equal((await call('/api/analytics', {anonymous:true})).status, 401);
+    const ignored = await call('/api/analytics/events', {method:'POST', value:{visitId:crypto.randomUUID(),referrer:'',events:[{id:crypto.randomUUID(),type:'page_view',path:'/',target:''}]}});
+    assert.equal(ignored.status, 202);
+    assert.equal((await ignored.json()).recorded, 0, 'Signed-in staff must be excluded');
+    const permissions = (await json('/api/users')).permissions;
+    assert.ok(permissions.some(permission => permission.id === 'analytics.read'));
+    for (const route of ['/telemetry.js','/analytics.js','/analytics-notice.html']) assert.equal((await call(route, {anonymous:true})).status, 200, route);
+    console.log('PASS: hosted analytics tables, private reports, metrics, staff exclusion, access permission and browser assets.');
+  }
   if (config.staffCheck) {
     const accounts = await json('/api/users');
     assert.ok(accounts.users.some(user => user.id === 'owner' && user.username === config.username));

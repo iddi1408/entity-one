@@ -22,6 +22,13 @@
       "when": 1791306897393,
       "tag": "0002_staff_accounts",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1791308404001,
+      "tag": "0003_analytics",
+      "breakpoints": true
     }
   ]
 }

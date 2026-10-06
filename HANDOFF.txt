@@ -6,6 +6,8 @@ Access: add a staff username, choose a role and individual permissions, then pri
 
 Logs: view who did what and when, filter by actor/action/date, and check Discord delivery. Passwords and private listing-note values are excluded. The configured Discord webhook is a server secret. Failed notifications remain visible and can be retried by an access manager with log permission.
 
+Analytics: open the sidebar tab for Overview, Audience, and Cars & clicks. Filter by date, visitor country and device, review popular cars/regions/brands and enquiry clicks, or export CSV. Grant staff "View website analytics" under Access & security. Data begins at publication; reports use UTC and cover up to 90 days. Visits are tab/page-load visits, not unique people. Countries are approximate, enquiry counts are link clicks, and staff browsing is excluded. Visitor analytics stays out of Discord.
+
 Manage inventory and wanted listings, statuses, galleries, private notes, company content, contact details, social links, team members and partners. Media supports PNG, JPEG and WebP. Backups can restore previous saved content; Access manages active sessions. Private notes, drafts and unavailable listings stay outside the public collection.
 
 Hosted data is persistent in D1 and uploaded media in private R2 storage. Local preview uses .sites-runtime/preview.sqlite and .sites-runtime/uploads. These are separate environments; credentials, runtime databases and sessions are never committed to GitHub. Source repository: https://github.com/iddi1408/entity-one

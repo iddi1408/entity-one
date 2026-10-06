@@ -14,6 +14,16 @@ The **Logs** tab records actor, action, time, affected records and changed field
 
 Configure the Discord webhook only as the secret runtime variable **`DISCORD_AUDIT_WEBHOOK_URL`** in Sites. Never put the URL in content, browser code, Git, screenshots or public documentation. Newly recorded audit events enter a persistent D1 delivery queue and produce formatted Discord embeds with mentions disabled. Delivery is attempted after API requests, with bounded batches, rate-limit delays, retries and visible failure status. Pending retries resume on later API traffic or an explicit retry from Logs. Delivery is at least once: a lost acknowledgement can cause a duplicate notification with the same event ID. Local preview has no Discord secret by default.
 
+## Website analytics
+
+**Analytics** in the admin sidebar provides Overview, Audience, and Cars & clicks views, date presets/custom dates, country/device filters, daily trends and CSV export. Grant staff the **View website analytics** permission under Access & security; the owner always has access. New Administrator and Manager role presets include it. Existing staff permission selections remain unchanged until the owner edits them.
+
+The first-party collector records public page views, car openings, region and brand selections, enquiry-link clicks and other named interactions. Countries describe the visitor's approximate edge-derived country, while region interest describes the location cards they chose. An enquiry is a link click, not a submitted enquiry or completed sale. Device and browser categories come from request headers; they are estimates. A visit is one page load/tab lifetime, not a unique person; reloading starts another visit. SPA navigation continues the same visit. Chart dates use UTC.
+
+Measurement starts when the feature is published; previous traffic is unavailable. Reports cover the latest 90 days. Old events and short-lived rate-limit hashes are purged on subsequent collection requests. Analytics is separate from staff audit logs and is never sent to Discord. There are no tracking cookies or persistent browser identifiers. No raw IP, full user-agent, referrer path/query, form contents, credentials or contact-link addresses enter event records. Signed-in staff, recognised bots, Do Not Track and Global Privacy Control requests are excluded. Sessions that cannot be checked fail closed. Reports may therefore undercount traffic, and browser privacy tools can block collection.
+
+`POST /api/analytics/events` accepts a bounded batch of allowlisted public events, checks same-origin JSON, validates public car IDs and known locations/marques, rate-limits requests, and deduplicates event UUIDs. `GET /api/analytics` requires a completed staff login and `analytics.read`. The public footer links to the factual analytics notice. Analytics is included in database backups, not content JSON exports.
+
 ## Architecture
 
 - `public/` contains the HTML, CSS, browser ES modules, bundled artwork, and initial public content. The admin editor calls the same-origin `/api` endpoints.
@@ -44,6 +54,7 @@ npm test
 npm run test:preview
 npm run test:hosting
 npm run test:staff
+npm run test:analytics
 ```
 
 These cover artifact structure, API authorization, content publication filtering, revision conflicts, backups, local media, password compatibility, administrator bootstrap, hosted media, and bundled R2 assets. Run them before deployment. Passing tests does not establish that a deployment has succeeded.
@@ -64,11 +75,12 @@ After migration, verify public pages, full-resolution media, administrator login
 ## Manage the site
 
 - **Overview:** collection totals, current version, recent activity, and details still needing attention.
+- **Analytics:** traffic trends, visitor countries/devices/referrers, automobile openings, enquiry clicks and location/marque interest. Use date and audience filters to compare the activity that matters to you.
 - **Inventory / Wanted:** add, edit, duplicate, or remove listings; manage photographs, galleries, featured placement, and private notes. Inventory statuses are available, reserved, sold, and draft. Wanted statuses are active, fulfilled, and draft. Public visitors see available/reserved inventory and active wanted requests. Drafts, sold/fulfilled records, and `internalNotes` stay private. Galleries support up to 12 additional images.
 - **Site content:** edit homepage copy and artwork, About content, HTTPS video links, social profiles, and contact details. Maintain 1–12 offices, 0–24 team members, and 0–24 partners. Image fields accept HTTPS URLs or local `/assets/` paths.
 - **Media:** upload PNG, JPEG, or WebP images up to 8 MiB, choose listing photographs, and copy image paths for other content fields. Uploaded files live outside the public source directory; anonymous visitors can retrieve them only when referenced by published content. Uploading an image alone does not publish it.
 - **Backups:** download or import content JSON, or restore a saved version. Each successful save retains the previous snapshot; the latest 20 snapshots are kept. Restoring creates a new revision and checks that the current revision has not changed.
-- **Activity:** inspect recent content, login, and session events. Credentials and private note text are excluded from the audit log.
+- **Logs:** inspect who changed content or access and when, with Discord delivery status. Credentials and private note text are excluded from the audit log.
 - **Access:** inspect sessions, replace the current session token, sign out other sessions, or log out. Replacing a token does not extend its original eight-hour deadline.
 
 Save changes explicitly. Version checks prevent a stale editor from silently overwriting a newer save. The homepage’s Pause motion control and the operating system’s reduced-motion preference control ambient motion.
