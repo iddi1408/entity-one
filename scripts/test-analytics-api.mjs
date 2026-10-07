@@ -25,6 +25,9 @@ try {
   await call('/api/analytics','GET',undefined,{},401);
   const empty = (await call('/api/analytics','GET',undefined,owner)).data;
   assert.equal(empty.totals.pageViews,0);
+  assert.equal(empty.meta.lastEventAt,null); assert.ok(Number.isFinite(Date.parse(empty.meta.generatedAt)));
+  assert.equal(empty.meta.sourceKnownVisits,0); assert.equal(empty.meta.sourceUnknownVisits,0);
+  assert.equal(empty.meta.comparisonAvailable,false); assert.ok(empty.meta.comparisonUnavailableReason);
   const publicContent = (await call('/api/content')).data.content;
   const car = publicContent.listings.find(x=>x.type==='inventory');
   const data = packet(event(),event('car_view','/',car.id),event('region_click','/inventory','Europe'));
@@ -35,6 +38,9 @@ try {
   assert.equal(report.totals.clicks,2); assert.equal(report.totals.carViews,1); assert.equal(report.totals.regionClicks,1);
   assert.equal(report.cars.find(x=>x.id===car.id).views,1);
   assert.equal(report.countries.find(x=>x.key==='GB').visits,1);
+  assert.equal(report.meta.sourceKnownVisits,0); assert.equal(report.meta.sourceUnknownVisits,1);
+  assert.equal(report.sources[0].label,'Not shared / direct');
+  assert.ok(Number.isFinite(Date.parse(report.meta.lastEventAt)));
   await call('/api/analytics/events','POST',packet(event()),owner,202,{country:'US'});
   assert.equal((await call('/api/analytics','GET',undefined,owner)).data.totals.visits,1,'Signed-in staff excluded');
   await call('/api/analytics/events','POST',packet(event()),{Origin:'https://foreign.test'},403);
@@ -54,6 +60,14 @@ try {
   const filtered = (await call('/api/analytics?country=GB&device=desktop','GET',undefined,owner)).data;
   assert.equal(filtered.totals.visits,1);
   assert.equal((await call('/api/analytics?country=US','GET',undefined,owner)).data.totals.visits,0);
+  const outbound = packet(event('click','/','outbound_instagram'),event('click','/','social_instagram'));
+  assert.equal((await call('/api/analytics/events','POST',outbound,{},202)).data.recorded,2);
+  assert.equal((await call('/api/analytics/events','POST',outbound,{},202)).data.recorded,0);
+  const labels = (await call('/api/analytics','GET',undefined,owner)).data;
+  assert.equal(labels.actions.find(x=>x.key==='outbound_instagram').label,'Instagram link clicks');
+  assert.equal(labels.actions.find(x=>x.key==='social_instagram').label,'Instagram icon (legacy)');
+  assert.equal(labels.meta.sourceKnownVisits + labels.meta.sourceUnknownVisits,labels.totals.visits);
+  assert.equal(labels.sources.reduce((sum,source)=>sum+source.visits,0),labels.totals.visits);
   await call('/api/analytics?from=2026-02-30&to=2026-03-01','GET',undefined,owner,400);
   await call('/api/analytics?device=unbounded','GET',undefined,owner,400);
   const created = (await call('/api/users','POST',{username:'analyst-test',role:'viewer',permissions:['analytics.read']},owner,201)).data;

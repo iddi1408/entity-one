@@ -5,6 +5,7 @@ import {createHostedAssetRoutes} from './site-assets.js';
 import {getAccount, findAccount, publicUser, can, handleAccountRoutes} from './accounts.js';
 import {writeAudit, readAudit, flushAudit, retryAudit, sanitizeAuditDetail} from './audit.js';
 import {collectAnalytics, readAnalytics} from './analytics.js';
+import {chatAvailable, replyToChat} from './chat.js';
 export {passwordHash, PASSWORD_VERSION, PASSWORD_ITERATIONS};
 
 const encoder = new TextEncoder();
@@ -306,6 +307,12 @@ export default {
         if (path === '/api/setup' || path === '/api/commit') throw new HttpError(404, 'This service does not exist.');
         if (!['GET', 'POST', 'PUT'].includes(request.method)) throw new HttpError(405, 'Method not allowed.');
         if (request.method !== 'GET') sameOrigin(request);
+        if (path === '/api/chat/status' && request.method === 'GET') return json({available: chatAvailable(env)});
+        if (path === '/api/chat' && request.method === 'POST') {
+          const input = await body(request, 6000);
+          const content = publicContent((await readContent(env)).content);
+          return json(await replyToChat({request, env, input, content, HttpError}));
+        }
         if (path === '/api/analytics/events' && request.method === 'POST') {
           // Staff browsing must never inflate the public audience figures.
           if (await authenticated(request, env)) return json({recorded: 0, ignored: true}, 202);
@@ -405,7 +412,7 @@ export default {
       console.error('ENTITY-1 request failed', error?.name);
       return json({error: 'The service is temporarily unavailable. Please try again.'}, 503);
     } finally {
-      if (env.DISCORD_AUDIT_WEBHOOK_URL && new URL(request.url).pathname.startsWith('/api/') && new URL(request.url).pathname !== '/api/analytics/events' && ctx?.waitUntil) ctx.waitUntil(flushAudit(env).catch(() => {}));
+      if (env.DISCORD_AUDIT_WEBHOOK_URL && new URL(request.url).pathname.startsWith('/api/') && !/^\/api\/(?:analytics\/events|chat(?:\/status)?)\/?$/.test(new URL(request.url).pathname) && ctx?.waitUntil) ctx.waitUntil(flushAudit(env).catch(() => {}));
     }
   }
 };

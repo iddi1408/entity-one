@@ -109,6 +109,11 @@ try {
     for (const key of ['visits','pageViews','clicks','carViews','regionClicks','brandClicks','enquiries']) assert.equal(typeof report.totals[key], 'number');
     assert.equal(report.range.timezone, 'UTC');
     assert.equal(report.meta.retentionDays, 90);
+    assert.ok(Number.isFinite(Date.parse(report.meta.generatedAt)), 'Report carries its server refresh time');
+    assert.ok(report.meta.lastEventAt === null || Number.isFinite(Date.parse(report.meta.lastEventAt)), 'Latest activity is a recorded timestamp or unknown');
+    assert.equal(report.meta.sourceKnownVisits + report.meta.sourceUnknownVisits, report.totals.visits, 'Source coverage accounts for every selected visit exactly once');
+    assert.equal(report.meta.comparisonAvailable, false, 'A period containing today cannot claim a full-period comparison');
+    assert.equal(typeof report.meta.comparisonUnavailableReason, 'string');
     assert.ok(Array.isArray(report.trend) && Array.isArray(report.cars) && Array.isArray(report.countries));
     assert.equal((await call('/api/analytics', {anonymous:true})).status, 401);
     const ignored = await call('/api/analytics/events', {method:'POST', value:{visitId:crypto.randomUUID(),referrer:'',events:[{id:crypto.randomUUID(),type:'page_view',path:'/',target:''}]}});

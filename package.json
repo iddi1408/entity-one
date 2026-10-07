@@ -10,9 +10,10 @@
     "test": "node --experimental-sqlite scripts/test.mjs",
     "test:preview": "node --experimental-sqlite scripts/test-preview.mjs",
     "test:staff": "node --experimental-sqlite scripts/test-accounts.mjs && node --experimental-sqlite scripts/test-staff.mjs && node --experimental-sqlite scripts/test-audit.mjs",
-    "test:analytics": "node --experimental-sqlite scripts/test-analytics.mjs && node --experimental-sqlite scripts/test-analytics-api.mjs && node scripts/test-telemetry.mjs",
+    "test:analytics": "node --experimental-sqlite scripts/test-analytics.mjs && node --experimental-sqlite scripts/test-analytics-api.mjs && node scripts/test-telemetry.mjs && node scripts/test-analytics-ui.mjs",
     "test:hosting": "node scripts/test-password.mjs && node --experimental-sqlite scripts/test-bootstrap.mjs && node scripts/test-hosted-media.mjs && node scripts/test-site-assets.mjs",
-    "admin:provision": "node --experimental-sqlite scripts/provision-admin.mjs"
+    "admin:provision": "node --experimental-sqlite scripts/provision-admin.mjs",
+    "test:chat": "node --experimental-sqlite scripts/test-chat.mjs && node scripts/test-chat-ui.mjs"
   },
   "devDependencies": {
     "drizzle-kit": "^0.31.4",

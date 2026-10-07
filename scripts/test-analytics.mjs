@@ -35,8 +35,8 @@ const rows = async (env, table = 'analytics_events') => (await env.DB.prepare(`S
 const equal = (actual, expected, message) => { assert.deepEqual(actual, expected, message); checks++; };
 const check = (value, message) => { assert.ok(value, message); checks++; };
 async function rejects(fn, status) { await assert.rejects(fn, error => error.status === status); checks++; }
-async function insertEvent(env, {at = clock, visitId = randomUUID(), type = 'page_view', path = '/', target = '', country = 'GB', device = 'desktop', browser = 'chrome', source = ''} = {}) {
-  await env.DB.prepare('INSERT INTO analytics_events(id,visit_id,at,day,type,path,target,country,device,browser,source) VALUES(?,?,?,?,?,?,?,?,?,?,?)').bind(randomUUID(), visitId, at, new Date(at * 1000).toISOString().slice(0, 10), type, path, target, country, device, browser, source).run();
+async function insertEvent(env, {id = randomUUID(), at = clock, visitId = randomUUID(), type = 'page_view', path = '/', target = '', country = 'GB', device = 'desktop', browser = 'chrome', source = ''} = {}) {
+  await env.DB.prepare('INSERT INTO analytics_events(id,visit_id,at,day,type,path,target,country,device,browser,source) VALUES(?,?,?,?,?,?,?,?,?,?,?)').bind(id, visitId, at, new Date(at * 1000).toISOString().slice(0, 10), type, path, target, country, device, browser, source).run();
 }
 
 try {
@@ -44,6 +44,9 @@ try {
   equal(empty.totals, {visits: 0, pageViews: 0, clicks: 0, carViews: 0, regionClicks: 0, brandClicks: 0, enquiries: 0});
   equal(empty.range, {from: '2026-09-30', to: '2026-10-06', days: 7, previousFrom: '2026-09-23', previousTo: '2026-09-29', timezone: 'UTC'});
   equal(empty.trend.length, 7); equal(empty.meta.startedAt, null); equal(empty.meta.comparisonAvailable, false);
+  equal(empty.meta.generatedAt, '2026-10-06T12:00:00.000Z'); equal(empty.meta.lastEventAt, null);
+  equal(empty.meta.sourceKnownVisits, 0); equal(empty.meta.sourceUnknownVisits, 0);
+  check(empty.meta.comparisonUnavailableReason.includes('today'));
   for (const options of [{headers: {DNT: '1'}}, {headers: {'Sec-GPC': '1'}}, {headers: {'User-Agent': 'Googlebot/2.1'}}, {headers: {'User-Agent': 'HeadlessChrome/130'}}, {cf: {country: 'GB', botManagement: {verifiedBot: true}}}]) equal(await collect(emptyEnv, packet(event()), options), {recorded: 0, ignored: 1});
   equal(await count(emptyEnv), 0); equal(await count(emptyEnv, 'analytics_metadata'), 0); equal(await count(emptyEnv, 'analytics_rate_limits'), 0, 'Opt-outs and bots create no tracking state');
 
@@ -73,6 +76,8 @@ try {
   const uppercase = {...active, visitId: active.visitId.toUpperCase(), events: active.events.map(item => ({...item, id: item.id.toUpperCase()}))};
   equal(await collect(env, uppercase), {recorded: 0, ignored: 8}, 'UUID case does not bypass deduplication');
   equal((await read(env)).meta.startedAt, startedAt, 'Collection start persists across retries');
+  equal((await read(env)).meta.lastEventAt, startedAt, 'Retries do not make the last accepted event look newer');
+  equal((await read(env)).meta.generatedAt, '2026-10-06T12:00:01.000Z', 'Report generation is separate from event freshness');
   const repeated = event('click', '/inventory', 'partner');
   equal(await collect(env, packet(repeated, repeated)), {recorded: 1, ignored: 1}, 'Duplicates within one batch count once');
   const stale = packet(event('car_view', '/', 'private-draft'), event('enquiry', '/', 'private-sold'), event('car_view', '/', 'wanted-closed'), event('car_view', '/', 'missing'), event('brand_click', '/', 'SecretBrand'), event('region_click', '/', 'Unpublished region'), event('click', '/', secret), event('page_view', '/', secret));
@@ -86,6 +91,7 @@ try {
   equal(report.actions.find(row => row.key === 'email').clicks, 1);
   check(report.brands.some(row => row.key === 'Bugatti'), 'Bundled marques are accepted even without current listings');
   equal(report.sources, [{key: 'search.example', visits: 1, label: 'search.example'}]);
+  equal(report.meta.sourceKnownVisits, 1); equal(report.meta.sourceUnknownVisits, 0);
   equal(report.pages.find(row => row.key === '/inventory'), {key: '/inventory', views: 1, clicks: 3, label: 'Inventory'});
   equal(report.countries, [{key: 'GB', visits: 1, pageViews: 2, clicks: 10, label: 'United Kingdom'}]);
   equal(report.trend.at(-1), {date: '2026-10-06', visits: 1, pageViews: 2, clicks: 10, carViews: 2, enquiries: 2});
@@ -107,7 +113,8 @@ try {
   equal(dimensions[0].source, '', 'Own origin referrer becomes direct');
   report = await read(dimensionEnv);
   equal(report.countries.find(row => row.key === 'XX').label, 'Unknown');
-  equal(report.sources[0], {key: '', visits: 5, label: 'Direct / unknown'});
+  equal(report.sources[0], {key: '', visits: 5, label: 'Not shared / direct'});
+  equal(report.meta.sourceKnownVisits, 0); equal(report.meta.sourceUnknownVisits, 5);
   equal((await read(dimensionEnv, 'country=FR&device=tablet')).totals.visits, 1);
   equal((await read(dimensionEnv, 'country=XX&device=desktop')).totals.visits, 1);
   equal((await read(dimensionEnv, 'country=US&device=desktop')).totals.visits, 0);
@@ -127,7 +134,11 @@ try {
   equal(report.trend.reduce((sum, row) => sum + row.visits, 0), 3, 'Daily visit totals may exceed distinct visits over the whole period');
   equal(report.meta.comparisonAvailable, false, 'Incomplete previous period suppresses comparisons');
   await history.DB.prepare("UPDATE analytics_metadata SET started_at=? WHERE id='main'").bind(baseTime - 30 * DAY).run();
-  equal((await read(history)).meta.comparisonAvailable, true);
+  equal((await read(history)).meta.comparisonAvailable, false, 'Today stays incomplete even with sufficient older history');
+  check((await read(history)).meta.comparisonUnavailableReason.includes('today'));
+  const completed = await read(history, 'from=2026-09-29&to=2026-10-05');
+  equal(completed.meta.comparisonAvailable, true, 'Completed periods can be compared with complete retained history');
+  equal(completed.meta.comparisonUnavailableReason, '');
   equal((await read(history, 'country=US')).previous.visits, 0, 'Previous period applies the same filters');
   const invalidQueries = ['from=2026-02-30', 'from=not-a-date', 'from=2026-10-07&to=2026-10-06', 'to=2026-10-07', 'from=2026-07-08&to=2026-10-06', 'from=2020-01-01&to=2020-01-02', 'country=AA', 'country=gb', 'country=GB%27OR1=1', 'device=robot'];
   for (const query of invalidQueries) await rejects(() => read(history, query), 400);
@@ -139,6 +150,7 @@ try {
   equal(boundedPrevious.previous.pageViews, 0, 'Expired rows are excluded from previous reports before cleanup occurs');
   equal(boundedPrevious.totals.pageViews, 1);
   equal(boundedPrevious.meta.comparisonAvailable, false);
+  check(boundedPrevious.meta.comparisonUnavailableReason.includes('retained'));
   await collect(history);
   equal((await history.DB.prepare('SELECT COUNT(*) AS total FROM analytics_events WHERE at < ?').bind(oldestRetained).first()).total, 0, 'Next collection removes expired event rows');
   equal((await history.DB.prepare('SELECT COUNT(*) AS total FROM analytics_events WHERE at = ?').bind(oldestRetained).first()).total, 1, 'UTC retention boundary remains');
@@ -166,8 +178,64 @@ try {
   for (let index = 0; index < 55; index++) await insertEvent(bounded, {source: `source${index}.example`});
   report = await read(bounded);
   equal(report.sources.length, 50); equal(report.totals.visits, 55, 'Top-list limits do not truncate totals');
+  equal(report.meta.sourceKnownVisits, 55, 'Source coverage includes sources beyond the top 50');
+  equal(report.meta.sourceUnknownVisits, 0);
   equal(report.meta.cookieless, true); equal(report.meta.retentionDays, 90);
-  console.log(`PASS: ${checks} analytics checks covering validation, public targets, deduplication, privacy, trusted geography, devices, reports, filters, retention, atomic rate limits and no audit delivery.`);
+
+  const social = fixture(), socialEvents = [];
+  for (const platform of ['instagram', 'tiktok', 'x', 'linkedin', 'reddit']) {
+    check(ANALYTICS_CLICK_TARGETS.includes('outbound_' + platform));
+    socialEvents.push(event('click', '/', 'outbound_' + platform), event('click', '/', 'social_' + platform));
+  }
+  const outgoing = packet(...socialEvents);
+  equal(await collect(social, outgoing), {recorded: 10, ignored: 0});
+  equal(await collect(social, outgoing), {recorded: 0, ignored: 10}, 'New outbound targets retain retry deduplication');
+  report = await read(social);
+  for (const [platform, name] of [['instagram','Instagram'],['tiktok','TikTok'],['x','X'],['linkedin','LinkedIn'],['reddit','Reddit']]) {
+    equal(report.actions.find(row => row.key === 'outbound_' + platform), {key: 'outbound_' + platform, clicks: 1, label: name + ' link clicks'});
+    equal(report.actions.find(row => row.key === 'social_' + platform), {key: 'social_' + platform, clicks: 1, label: name + ' icon (legacy)'});
+  }
+  equal(report.sources, [], 'Outgoing social clicks never become incoming source attribution');
+  equal(report.meta.sourceKnownVisits + report.meta.sourceUnknownVisits, 0);
+
+  // A visit receives its first selected page-view source, never every reported source.
+  const attribution = fixture(), at = value => Date.parse(value) / 1000;
+  const firstVisit = randomUUID(), laterVisit = randomUUID(), tiedVisit = randomUUID(), filteredVisit = randomUUID();
+  await insertEvent(attribution, {visitId:firstVisit, at:at('2026-10-02T09:00:00Z'), source:''});
+  await insertEvent(attribution, {visitId:firstVisit, at:at('2026-10-02T10:00:00Z'), source:'later.example'});
+  await insertEvent(attribution, {visitId:laterVisit, at:at('2026-10-01T23:00:00Z'), source:'outside.example'});
+  await insertEvent(attribution, {visitId:laterVisit, at:at('2026-10-02T11:00:00Z'), source:'instagram.com'});
+  await insertEvent(attribution, {visitId:laterVisit, at:at('2026-10-03T11:00:00Z'), source:'reddit.com'});
+  await insertEvent(attribution, {id:'00000000-0000-4000-8000-000000000002', visitId:tiedVisit, at:at('2026-10-02T12:00:00Z'), source:'wrong-tie.example'});
+  await insertEvent(attribution, {id:'00000000-0000-4000-8000-000000000001', visitId:tiedVisit, at:at('2026-10-02T12:00:00Z'), source:'first-tie.example'});
+  await insertEvent(attribution, {visitId:filteredVisit, at:at('2026-10-02T13:00:00Z'), source:'desktop.example', country:'GB', device:'desktop'});
+  await insertEvent(attribution, {visitId:filteredVisit, at:at('2026-10-02T14:00:00Z'), source:'mobile.example', country:'US', device:'mobile'});
+  await insertEvent(attribution, {at:at('2026-10-05T15:00:00Z'), type:'click', target:'navigation', country:'US'});
+  report = await read(attribution, 'from=2026-10-02&to=2026-10-03');
+  equal(report.sources, [{key:'',visits:1,label:'Not shared / direct'},{key:'desktop.example',visits:1,label:'desktop.example'},{key:'first-tie.example',visits:1,label:'first-tie.example'},{key:'instagram.com',visits:1,label:'instagram.com'}]);
+  equal(report.totals.visits, 4);
+  equal(report.sources.reduce((sum, source) => sum + source.visits, 0), report.totals.visits, 'Sources cannot double-count visits');
+  equal(report.meta.sourceKnownVisits, 3); equal(report.meta.sourceUnknownVisits, 1);
+  equal(report.meta.sourceKnownVisits + report.meta.sourceUnknownVisits, report.totals.visits);
+  equal(report.meta.lastEventAt, '2026-10-05T15:00:00.000Z', 'Latest accepted event is sitewide, outside selected dates');
+  const mobile = await read(attribution, 'from=2026-10-02&to=2026-10-03&country=US&device=mobile');
+  equal(mobile.sources, [{key:'mobile.example',visits:1,label:'mobile.example'}], 'First source is chosen after selected audience filters');
+  equal(mobile.meta.sourceKnownVisits, 1); equal(mobile.meta.sourceUnknownVisits, 0); equal(mobile.totals.visits, 1);
+  equal(mobile.meta.lastEventAt, report.meta.lastEventAt, 'Audience filters do not affect freshness metadata');
+  equal((await read(attribution, 'from=2026-10-03&to=2026-10-03')).sources, [{key:'reddit.com',visits:1,label:'reddit.com'}], 'Date range changes source attribution to first view within that range');
+
+  const partial = fixture();
+  await partial.DB.prepare("INSERT INTO analytics_metadata (id,started_at) VALUES ('main',?)").bind(at('2026-10-02T12:00:00Z')).run();
+  report = await read(partial, 'from=2026-10-03&to=2026-10-03');
+  equal(report.meta.comparisonAvailable, false); check(report.meta.comparisonUnavailableReason.includes('first, incomplete day'));
+  report = await read(partial, 'from=2026-10-02&to=2026-10-02');
+  equal(report.meta.comparisonAvailable, false); check(report.meta.comparisonUnavailableReason.includes('not enough complete'));
+  report = await read(partial, 'from=2026-10-04&to=2026-10-04');
+  equal(report.meta.comparisonAvailable, true); equal(report.meta.comparisonUnavailableReason, '');
+  await partial.DB.prepare("UPDATE analytics_metadata SET started_at=? WHERE id='main'").bind(at('2026-10-02T00:00:00Z')).run();
+  equal((await read(partial, 'from=2026-10-03&to=2026-10-03')).meta.comparisonAvailable, true, 'Collection starting exactly at UTC midnight permits that full day');
+  equal((await read(fixture(), 'from=2026-10-03&to=2026-10-03')).meta.comparisonAvailable, false, 'Empty history never enables comparisons');
+  console.log(`PASS: ${checks} analytics checks covering source attribution and coverage, explicit outbound/legacy social labels, report freshness, complete-period comparisons, validation, deduplication, privacy, trusted geography, retention, atomic rate limits and no audit delivery.`);
 } finally {
   Date.now = originalNow; globalThis.fetch = originalFetch;
   for (const DB of databases) DB.close();

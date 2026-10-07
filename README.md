@@ -16,9 +16,13 @@ Configure the Discord webhook only as the secret runtime variable **`DISCORD_AUD
 
 ## Website analytics
 
-**Analytics** in the admin sidebar provides Overview, Audience, and Cars & clicks views, date presets/custom dates, country/device filters, daily trends and CSV export. Grant staff the **View website analytics** permission under Access & security; the owner always has access. New Administrator and Manager role presets include it. Existing staff permission selections remain unchanged until the owner edits them.
+**Analytics** in the admin sidebar provides an overview, audience/source reports, and car/click reports, with date presets, optional country/device filters, daily trends and CSV export. The dashboard distinguishes incoming referrers from outgoing social links, explains each metric, and shows when data was last recorded and refreshed. Grant staff the **View website analytics** permission under Access & security; the owner always has access. New Administrator and Manager role presets include it. Existing staff permission selections remain unchanged until the owner edits them.
 
 The first-party collector records public page views, car openings, region and brand selections, enquiry-link clicks and other named interactions. Countries describe the visitor's approximate edge-derived country, while region interest describes the location cards they chose. An enquiry is a link click, not a submitted enquiry or completed sale. Device and browser categories come from request headers; they are estimates. A visit is one page load/tab lifetime, not a unique person; reloading starts another visit. SPA navigation continues the same visit. Chart dates use UTC.
+
+Incoming sources are literal hostnames reported by `document.referrer`, not verified Instagram/Meta or other platform analytics. Missing referrers remain **Not shared / direct**; there is no UTM attribution or external platform integration. Each visit is attributed to its first recorded page-view source within the selected period. Source coverage reports how many visits supplied a hostname, not a confidence score. Outgoing social events require an enabled HTTPS link to the expected platform; placeholders are ignored. Historical `social_*` icon events are kept separately as legacy data because they may include placeholder clicks. Partner placeholders and disabled controls are also ignored. Analytics is browser-reported, so blockers can cause missing activity and automated requests may still pass the filters.
+
+Percentage comparisons are available only for completed UTC periods with a full previous period of collection; today and partial collection days do not produce misleading growth percentages. Collection start and available history are shown rather than treating pre-collection days as measured traffic. Historical event records are preserved, not rewritten to imply improved precision. Synthetic QA events are kept in a disposable local database and never deployed.
 
 Measurement starts when the feature is published; previous traffic is unavailable. Reports cover the latest 90 days. Old events and short-lived rate-limit hashes are purged on subsequent collection requests. Analytics is separate from staff audit logs and is never sent to Discord. There are no tracking cookies or persistent browser identifiers. No raw IP, full user-agent, referrer path/query, form contents, credentials or contact-link addresses enter event records. Signed-in staff, recognised bots, Do Not Track and Global Privacy Control requests are excluded. Sessions that cannot be checked fail closed. Reports may therefore undercount traffic, and browser privacy tools can block collection.
 
@@ -107,7 +111,15 @@ The right-facing white Aventador SVJ hero is a generative studio illustration, n
 
 Demo photographs and their Unsplash License credits are recorded in [car-photo-sources.json](car-photo-sources.json) and [image-quality-sources.json](image-quality-sources.json). The Ferrari source does not independently establish a specific trim. [brand-logo-sources.json](brand-logo-sources.json) and [mclaren-speedmark-source.json](mclaren-speedmark-source.json) record logo sources and treatments. Globe geometry uses public-domain Natural Earth data projected with D3; see [globe-sources.json](globe-sources.json). Regional photograph credits remain in [region-photo-sources.json](region-photo-sources.json). Fonts and visual assets are served locally.
 
-## Security scope
+## AI concierge
+
+The public chat uses Claude Haiku 4.5 through the Worker. Set `ANTHROPIC_API_KEY` as a secret in Sites environment variables, then deploy to apply it. No key is included in browser assets. The local preview has chat disabled unless the secret is explicitly supplied to its server environment.
+
+Replies use at most 220 output tokens, five recent messages (3,000 characters combined), and a bounded selection of public listings. No automatic retries or background model calls run. Defaults allow 6 requests per minute and 30 per UTC day per IP, with a global ceiling of 100 per UTC day. `CHAT_PER_MINUTE_LIMIT`, `CHAT_PER_IP_DAILY_LIMIT`, and `CHAT_DAILY_LIMIT` can lower these budgets; failed provider attempts consume limits too. Limits reset on the next period and are shared by visitors behind the same IP.
+
+The site does not persist transcripts or send them to Discord. Claude receives submitted messages and public listing context; its provider policies apply. Responses are AI guidance and the team must confirm details. Use `npm run test:chat` for mocked checks without spending API tokens.
+
+## Security controls
 
 Controls include a protected owner account, server-enforced staff permissions, salted PBKDF2-SHA256 password hashes at 600,000 iterations, login limits, HttpOnly/SameSite cookies, same-origin and CSRF checks, bounded requests, validated media, explicit public-content allowlists, session revocation, a 30-minute inactivity timeout, and an eight-hour maximum session. HTTPS cookies use Secure; the local HTTP loopback cookie cannot. Uploaded draft media requires media permission and becomes publicly retrievable only when referenced by published content.
 

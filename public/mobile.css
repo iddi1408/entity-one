@@ -1,0 +1,33 @@
+/* Comfortable controls without changing the desktop composition. */
+#e1-chat{z-index:80}
+@media (max-width:900px){
+  #menu-toggle{min-width:44px;min-height:44px;flex-shrink:0}
+  .header-access{min-height:44px}
+  .dialog-close{width:44px;height:44px}
+  .adm-sidebar nav button,.adm-primary,.adm-secondary,.adm-danger{min-height:44px}
+  body input:not([type=checkbox]):not([type=radio]):not([type=range]),body select,body textarea{font-size:16px!important}
+  .vehicle-price button{min-height:44px}
+  .detail-specs dd,.stage-identity{min-width:0;overflow-wrap:anywhere}
+}
+@media (max-width:360px){
+  .site-header .wordmark{font-size:15px;white-space:nowrap}
+  .site-header{gap:8px}
+  .header-access{padding-left:12px;padding-right:12px}
+}
+@media (max-width:780px){
+  .hero-social-row{flex-wrap:wrap;gap:8px 12px}
+  .hero-social-row>a{min-height:44px;display:inline-flex;align-items:center}
+  .social-links{flex-wrap:wrap;gap:5px}
+  .social-links a,.social-links button,.hero-social-row .social-links a,.hero-social-row .social-links button{width:44px;height:44px;min-width:44px;min-height:44px}
+  .marque-buttons{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%}
+  .marque-buttons button{min-width:0;width:100%}
+  .motion-toggle{min-height:44px}
+  #e1-chat .e1-chat-send{width:44px;height:44px}
+  #e1-chat .e1-chat-clear,#e1-chat .e1-chat-prompts button,#e1-chat .e1-chat-retry{min-height:44px}
+  #e1-chat .e1-chat-privacy a{min-height:30px;display:inline-flex;align-items:center}
+}
+@media (max-width:600px){
+  #e1-chat{left:max(12px,env(safe-area-inset-left));right:max(12px,env(safe-area-inset-right))}
+  #e1-chat .e1-chat-launcher{width:max-content;margin-left:auto}
+  #e1-chat .e1-chat-panel{width:100%;max-width:410px;margin-left:auto}
+}

@@ -3,7 +3,8 @@ import {brandMatches} from './brands.js';
 
 const paths = new Set(['/', '/inventory', '/wanted', '/about', '/contact']);
 const regions = new Set(['America', 'Europe', 'Gulf and Asia']);
-const clickTargets = new Set(['navigation', 'inventory', 'wanted', 'about', 'contact', 'browse_inventory', 'browse_wanted', 'view_all_inventory', 'view_all_wanted', 'social_instagram', 'social_tiktok', 'social_x', 'social_linkedin', 'social_reddit', 'email', 'phone', 'whatsapp', 'partner', 'gallery', 'copy_link', 'share', 'pause_motion', 'resume_motion']);
+const clickTargets = new Set(['navigation', 'inventory', 'wanted', 'about', 'contact', 'browse_inventory', 'browse_wanted', 'view_all_inventory', 'view_all_wanted', 'email', 'phone', 'whatsapp', 'gallery', 'copy_link', 'share', 'pause_motion', 'resume_motion']);
+const socialHosts = new Map([['instagram', ['instagram.com']], ['tiktok', ['tiktok.com']], ['x', ['x.com', 'twitter.com']], ['linkedin', ['linkedin.com']], ['reddit', ['reddit.com']]]);
 const pagePath = value => value.replace(/\/$/, '') || '/';
 const MAX_QUEUE = 60, MAX_BATCH = 20, DELAY = 1500;
 
@@ -95,24 +96,39 @@ export function createTelemetry({getSession, getContent}, scope = globalThis) {
   function click(event) {
     if (event.isTrusted === false || event.button > 0 || !eligible()) return;
     const element = event.target?.closest?.('a, button, [data-car], [data-marque], [data-telemetry-click]');
-    if (!element || element.closest('form, input, textarea, select, [contenteditable]') || element.hasAttribute('download')) return;
+    if (!element || element.closest('form, input, textarea, select, [contenteditable], [disabled], [aria-disabled="true" i]') || element.hasAttribute('download')) return;
     const anchor = element.closest('a');
     let destination;
-    try { if (anchor) destination = new URL(anchor.getAttribute('href'), scope.location.href); } catch { return; }
+    const href = anchor?.getAttribute('href')?.trim();
+    try { if (href && !href.startsWith('#')) destination = new URL(href, scope.location.href); } catch { return; }
     // Private destinations never produce navigation or interaction events.
     if (destination?.origin === scope.location.origin && !paths.has(pagePath(destination.pathname))) return;
+    const controls = anchor && anchor !== element ? [element, anchor] : [element];
+    const annotation = element.getAttribute('data-telemetry-click');
+    const socialNames = controls.flatMap(control => {
+      const tag = control.getAttribute('data-social'), annotated = /^(?:social_|outbound_)(.*)$/.exec(control.getAttribute('data-telemetry-click') || '');
+      return [...(tag === null ? [] : [tag]), ...(annotated ? [annotated[1]] : [])];
+    });
+    const hostname = destination?.hostname.toLowerCase().replace(/\.$/, '');
+    const externalHTTPS = !!anchor && destination?.protocol === 'https:' && !destination.username && !destination.password && hostname !== scope.location.hostname.toLowerCase().replace(/\.$/, '');
+    // Destination checks precede annotations so placeholders cannot become real clicks.
+    if (socialNames.length) {
+      const social = socialNames[0], hosts = socialHosts.get(social);
+      if (externalHTTPS && hosts && socialNames.every(name => name === social) && hosts.some(host => hostname === host || hostname.endsWith('.' + host))) record('click', 'outbound_' + social);
+      return;
+    }
+    if (controls.some(control => control.matches('.partner-logo, [data-partner]') || control.getAttribute('data-telemetry-click') === 'partner')) {
+      if (externalHTTPS) record('click', 'partner');
+      return;
+    }
     const enquiry = listingId(element.getAttribute('data-telemetry-enquiry'));
     if (enquiry) { record('enquiry', enquiry); return; }
     const car = listingId(element.getAttribute('data-car'));
     if (car) { record('car_view', car); return; }
     const marque = brandName(element.getAttribute('data-marque'));
     if (marque) { record('brand_click', marque); return; }
-    const annotation = element.getAttribute('data-telemetry-click');
     if (clickTargets.has(annotation)) { record('click', annotation); return; }
-    const social = element.getAttribute('data-social');
-    if (clickTargets.has('social_' + social)) { record('click', 'social_' + social); return; }
     if (element.hasAttribute('data-gallery-image')) { record('click', 'gallery'); return; }
-    if (element.matches('.partner-logo, [data-partner]')) { record('click', 'partner'); return; }
     if (element.matches('[data-motion-toggle], #film-toggle')) { record('click', element.getAttribute('aria-pressed') === 'true' ? 'resume_motion' : 'pause_motion'); return; }
     if (element.id === 'menu-toggle') { record('click', 'navigation'); return; }
     if (!destination) return;

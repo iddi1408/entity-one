@@ -7,7 +7,7 @@ const REGIONS = new Set(['America', 'Europe', 'Gulf and Asia']);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const COUNTRIES = new Set('AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BV BW BY BZ CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK FM FO FR GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY HK HM HN HR HT HU ID IE IL IM IN IO IQ IR IS IT JE JM JO JP KE KG KH KI KM KN KP KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MF MG MH MK ML MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ NA NC NE NF NG NI NL NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS PT PW PY QA RE RO RS RU RW SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TF TG TH TJ TK TL TM TN TO TR TT TV TW TZ UA UG UM US UY UZ VA VC VE VG VI VN VU WF WS YE YT ZA ZM ZW'.split(' '));
 const DEVICES = new Set(['desktop', 'mobile', 'tablet', 'unknown']);
-export const ANALYTICS_CLICK_TARGETS = Object.freeze(['navigation', 'inventory', 'wanted', 'about', 'contact', 'browse_inventory', 'browse_wanted', 'view_all_inventory', 'view_all_wanted', 'social_instagram', 'social_tiktok', 'social_x', 'social_linkedin', 'social_reddit', 'email', 'phone', 'whatsapp', 'copy_link', 'share', 'pause_motion', 'resume_motion', 'partner', 'gallery']);
+export const ANALYTICS_CLICK_TARGETS = Object.freeze(['navigation', 'inventory', 'wanted', 'about', 'contact', 'browse_inventory', 'browse_wanted', 'view_all_inventory', 'view_all_wanted', 'social_instagram', 'social_tiktok', 'social_x', 'social_linkedin', 'social_reddit', 'outbound_instagram', 'outbound_tiktok', 'outbound_x', 'outbound_linkedin', 'outbound_reddit', 'email', 'phone', 'whatsapp', 'copy_link', 'share', 'pause_motion', 'resume_motion', 'partner', 'gallery']);
 const CLICKS = new Set(ANALYTICS_CLICK_TARGETS), ENQUIRIES = new Set(['contact', 'email', 'phone', 'whatsapp']);
 const BOT = /bot\b|spider|crawler|headlesschrome|lighthouse|pagespeed|slurp|facebookexternalhit|bingpreview|curl\/|wget\/|python-requests|uptimerobot/i;
 const now = () => Math.floor(Date.now() / 1000);
@@ -87,12 +87,17 @@ function parseDate(value, HttpError) {
 const TOTALS = "COUNT(DISTINCT CASE WHEN type = 'page_view' THEN visit_id END) AS visits, SUM(type = 'page_view') AS pageViews, SUM(type <> 'page_view') AS clicks, SUM(type = 'car_view') AS carViews, SUM(type = 'region_click') AS regionClicks, SUM(type = 'brand_click') AS brandClicks, SUM(type = 'enquiry') AS enquiries";
 const numeric = row => Object.fromEntries(['visits', 'pageViews', 'clicks', 'carViews', 'regionClicks', 'brandClicks', 'enquiries'].map(key => [key, Number(row?.[key] || 0)]));
 const label = key => key.replace(/_/g, ' ').replace(/\b[a-z]/g, character => character.toUpperCase());
+const socialNames = {instagram: 'Instagram', tiktok: 'TikTok', x: 'X', linkedin: 'LinkedIn', reddit: 'Reddit'};
+function actionLabel(key) {
+  const match = /^(outbound|social)_(instagram|tiktok|x|linkedin|reddit)$/.exec(key);
+  return match ? `${socialNames[match[2]]} ${match[1] === 'outbound' ? 'link clicks' : 'icon (legacy)'}` : label(key);
+}
 const browserLabels = {chrome: 'Chrome', safari: 'Safari', firefox: 'Firefox', edge: 'Edge', opera: 'Opera', samsung: 'Samsung Internet', unknown: 'Unknown'};
 let regionNames;
 function countryLabel(country) { if (country === 'XX') return 'Unknown'; try { regionNames ||= new Intl.DisplayNames(['en'], {type: 'region'}); return regionNames.of(country); } catch { return country; } }
 
 export async function readAnalytics(env, searchParams = new URLSearchParams(), HttpError) {
-  const today = start(now()), to = searchParams.get('to') ? parseDate(searchParams.get('to'), HttpError) : today;
+  const generated = now(), today = start(generated), to = searchParams.get('to') ? parseDate(searchParams.get('to'), HttpError) : today;
   const from = searchParams.get('from') ? parseDate(searchParams.get('from'), HttpError) : to - 6 * DAY;
   const days = (to - from) / DAY + 1;
   const cutoff = today - (RETENTION - 1) * DAY;
@@ -106,29 +111,39 @@ export async function readAnalytics(env, searchParams = new URLSearchParams(), H
   const where = 'at >= ? AND at < ?' + extra;
   const params = [from, to + DAY, ...filters];
   const all = async (sql, values = params) => (await env.DB.prepare(sql).bind(...values).all()).results;
-  const [totalsRow, previousRow, daily, countries, devices, browsers, sources, pages, cars, regions, brands, actions, metadata] = await Promise.all([
-    env.DB.prepare(`SELECT ${TOTALS} FROM analytics_events WHERE ${where}`).bind(...params).first(),
+  // Attribute each selected visit exactly once. Totals, coverage and the top sources
+  // use one database snapshot, including when traffic arrives while a report loads.
+  const sourceCounts = `WITH first_views AS (SELECT source, ROW_NUMBER() OVER (PARTITION BY visit_id ORDER BY at, id) AS position FROM analytics_events WHERE ${where} AND type = 'page_view'), source_counts AS (SELECT source AS key, COUNT(*) AS visits FROM first_views WHERE position = 1 GROUP BY source)`;
+  const [totalsRow, previousRow, daily, countries, devices, browsers, pages, cars, regions, brands, actions, metadata] = await Promise.all([
+    env.DB.prepare(`${sourceCounts} SELECT ${TOTALS}, (SELECT COALESCE(SUM(visits), 0) FROM source_counts WHERE key <> '') AS source_known_visits, (SELECT COALESCE(SUM(visits), 0) FROM source_counts WHERE key = '') AS source_unknown_visits, (SELECT json_group_array(json_object('key', key, 'visits', visits)) FROM (SELECT key, visits FROM source_counts ORDER BY visits DESC, key LIMIT 50)) AS sources FROM analytics_events WHERE ${where}`).bind(...params, ...params).first(),
     env.DB.prepare(`SELECT ${TOTALS} FROM analytics_events WHERE ${where}`).bind(Math.max(previousFrom, cutoff), from, ...filters).first(),
     all(`SELECT day AS date, ${TOTALS} FROM analytics_events WHERE ${where} GROUP BY day ORDER BY day`),
     all(`SELECT country AS key, COUNT(DISTINCT CASE WHEN type = 'page_view' THEN visit_id END) AS visits, SUM(type = 'page_view') AS pageViews, SUM(type <> 'page_view') AS clicks FROM analytics_events WHERE ${where} GROUP BY country ORDER BY visits DESC, pageViews DESC, country LIMIT 100`),
     all(`SELECT device AS key, COUNT(DISTINCT visit_id) AS visits FROM analytics_events WHERE ${where} AND type = 'page_view' GROUP BY device ORDER BY visits DESC, device LIMIT 10`),
     all(`SELECT browser AS key, COUNT(DISTINCT visit_id) AS visits FROM analytics_events WHERE ${where} AND type = 'page_view' GROUP BY browser ORDER BY visits DESC, browser LIMIT 20`),
-    all(`SELECT source AS key, COUNT(DISTINCT visit_id) AS visits FROM analytics_events WHERE ${where} AND type = 'page_view' GROUP BY source ORDER BY visits DESC, source LIMIT 50`),
     all(`SELECT path AS key, SUM(type = 'page_view') AS views, SUM(type <> 'page_view') AS clicks FROM analytics_events WHERE ${where} GROUP BY path ORDER BY views DESC, clicks DESC, path LIMIT 10`),
     all(`SELECT target AS id, MAX(car_label) AS label, MAX(car_brand) AS brand, MAX(car_region) AS region, MAX(car_type) AS type, SUM(type = 'car_view') AS views, SUM(type = 'enquiry') AS enquiries FROM analytics_events WHERE ${where} AND car_type <> '' AND type IN ('car_view','enquiry') GROUP BY target ORDER BY views DESC, enquiries DESC, target LIMIT 50`),
     all(`SELECT target AS key, COUNT(*) AS clicks FROM analytics_events WHERE ${where} AND type = 'region_click' GROUP BY target ORDER BY clicks DESC, target LIMIT 10`),
     all(`SELECT target AS key, COUNT(*) AS clicks FROM analytics_events WHERE ${where} AND type = 'brand_click' GROUP BY target ORDER BY clicks DESC, target LIMIT 50`),
     all(`SELECT target AS key, COUNT(*) AS clicks FROM analytics_events WHERE ${where} AND (type = 'click' OR (type = 'enquiry' AND car_type = '')) GROUP BY target ORDER BY clicks DESC, target LIMIT 50`),
-    env.DB.prepare("SELECT started_at FROM analytics_metadata WHERE id = 'main'").first()
+    env.DB.prepare("SELECT (SELECT started_at FROM analytics_metadata WHERE id = 'main') AS started_at, (SELECT MAX(at) FROM analytics_events) AS last_event_at").first()
   ]);
+  const sources = JSON.parse(totalsRow.sources || '[]');
+  const startedAt = Number.isSafeInteger(metadata?.started_at) ? metadata.started_at : null;
+  const firstCompleteDay = startedAt === null ? null : start(startedAt) + (startedAt % DAY === 0 ? 0 : DAY);
+  let comparisonUnavailableReason = '';
+  if (to === today) comparisonUnavailableReason = 'The selected period includes today, which is not yet complete in UTC.';
+  else if (previousFrom < cutoff) comparisonUnavailableReason = 'The previous period falls outside the retained 90 days.';
+  else if (firstCompleteDay === null || previousFrom < start(startedAt)) comparisonUnavailableReason = 'There is not enough complete collection history for the previous period.';
+  else if (previousFrom < firstCompleteDay) comparisonUnavailableReason = 'The previous period includes the first, incomplete day of collection.';
   const byDate = new Map(daily.map(row => [row.date, numeric(row)]));
   const trend = Array.from({length: days}, (_, index) => { const key = date(from + index * DAY), item = byDate.get(key) || numeric(null); return {date: key, visits: item.visits, pageViews: item.pageViews, clicks: item.clicks, carViews: item.carViews, enquiries: item.enquiries}; });
   return {
     range: {from: date(from), to: date(to), days, previousFrom: date(previousFrom), previousTo: date(previousTo), timezone: 'UTC'},
     totals: numeric(totalsRow), previous: numeric(previousRow), trend,
-    countries: countries.map(row => ({...row, label: countryLabel(row.key)})), devices: devices.map(row => ({...row, label: label(row.key)})), browsers: browsers.map(row => ({...row, label: browserLabels[row.key] || 'Unknown'})), sources: sources.map(row => ({...row, label: row.key || 'Direct / unknown'})),
+    countries: countries.map(row => ({...row, label: countryLabel(row.key)})), devices: devices.map(row => ({...row, label: label(row.key)})), browsers: browsers.map(row => ({...row, label: browserLabels[row.key] || 'Unknown'})), sources: sources.map(row => ({...row, label: row.key || 'Not shared / direct'})),
     pages: pages.map(row => ({...row, label: PATHS.get(row.key) || row.key})), cars,
-    regions: regions.map(row => ({...row, label: row.key})), brands: brands.map(row => ({...row, label: row.key})), actions: actions.map(row => ({...row, label: label(row.key)})),
-    meta: {startedAt: metadata ? new Date(metadata.started_at * 1000).toISOString() : null, retentionDays: RETENTION, cookieless: true, comparisonAvailable: !!metadata && previousFrom >= start(metadata.started_at) && previousFrom >= today - (RETENTION - 1) * DAY}
+    regions: regions.map(row => ({...row, label: row.key})), brands: brands.map(row => ({...row, label: row.key})), actions: actions.map(row => ({...row, label: actionLabel(row.key)})),
+    meta: {startedAt: startedAt === null ? null : new Date(startedAt * 1000).toISOString(), generatedAt: new Date(generated * 1000).toISOString(), lastEventAt: Number.isSafeInteger(metadata?.last_event_at) ? new Date(metadata.last_event_at * 1000).toISOString() : null, sourceKnownVisits: Number(totalsRow.source_known_visits), sourceUnknownVisits: Number(totalsRow.source_unknown_visits), retentionDays: RETENTION, cookieless: true, comparisonAvailable: !comparisonUnavailableReason, comparisonUnavailableReason}
   };
 }

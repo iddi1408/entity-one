@@ -66,3 +66,6 @@ export const analyticsRateLimits = sqliteTable('analytics_rate_limits', {
 export const analyticsMetadata = sqliteTable('analytics_metadata', {
   id: text('id').primaryKey(), startedAt: integer('started_at').notNull()
 }, table => [check('analytics_metadata_singleton', sql`${table.id} = 'main'`)]);
+export const chatRateLimits = sqliteTable('chat_rate_limits', {
+  bucket: text('bucket').primaryKey(), attempts: integer('attempts').notNull(), expires: integer('expires').notNull()
+}, table => [index('idx_chat_rate_expiry').on(table.expires)]);

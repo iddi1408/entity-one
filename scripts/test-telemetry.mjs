@@ -15,7 +15,13 @@ class Element {
   matches(selector) {
     return selector.split(',').some(part => {
       const value = part.trim();
-      if (value.startsWith('[')) return this.hasAttribute(value.slice(1, -1));
+      if (value.startsWith('[')) {
+        const attribute = /^\[([\w-]+)(?:="([^"]*)"( i)?)?\]$/.exec(value);
+        if (!attribute || !this.hasAttribute(attribute[1])) return false;
+        if (attribute[2] === undefined) return true;
+        const actual = String(this.getAttribute(attribute[1]));
+        return attribute[3] ? actual.toLowerCase() === attribute[2].toLowerCase() : actual === attribute[2];
+      }
       if (value.startsWith('#')) return this.id === value.slice(1);
       if (value.startsWith('.')) return (this.attributes.class || '').split(' ').includes(value.slice(1));
       return this.tag === value;
@@ -89,7 +95,7 @@ const safe = setup(); safe.tracker.sessionSettled();
 safe.click(new Element('a', {href: 'mailto:secret-address@example.test?body=secret-message'}));
 safe.click(new Element('a', {href: 'tel:+441234567890'}));
 safe.click(new Element('a', {href: 'https://wa.me/441234567890?text=private-text'}));
-safe.click(new Element('a', {'data-telemetry-click': 'social_instagram', href: 'https://social.example/private-profile'}));
+safe.click(new Element('a', {'data-telemetry-click': 'social_instagram', href: 'https://www.instagram.com/private-profile'}));
 safe.click(new Element('a', {class: 'partner-logo', href: 'https://partner.example/secret-token'}));
 safe.click(new Element('button', {'data-gallery-image': '/assets/private-filename.png'}));
 safe.click(new Element('button', {'data-motion-toggle': '', 'aria-pressed': 'false'}));
@@ -102,7 +108,7 @@ safe.click(new Element('a', {href: '/admin'}));
 safe.click(new Element('a', {href: '/analytics-notice.html'}));
 safe.click(new Element('a', {href: '/image-credits.html'}));
 await safe.flush();
-assert.deepEqual(events(safe).filter(event => event.type !== 'page_view').map(event => event.target), ['email','phone','whatsapp','social_instagram','partner','gallery','pause_motion','resume_motion','navigation']);
+assert.deepEqual(events(safe).filter(event => event.type !== 'page_view').map(event => event.target), ['email','phone','whatsapp','outbound_instagram','partner','gallery','pause_motion','resume_motion','navigation']);
 const serialized = JSON.stringify(safe.sent.map(batch => batch.payload));
 for (const value of ['secret-address', 'secret-message', '441234567890', 'private-text', 'private-profile', 'secret-token', 'private-filename', 'credentials', '/admin', '/exclusive']) assert.equal(serialized.includes(value), false);
 for (const event of events(safe)) {
@@ -110,6 +116,82 @@ for (const event of events(safe)) {
   assert.match(event.id, /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i);
 }
 assert.equal(new Set(events(safe).map(event => event.id)).size, events(safe).length);
+
+// Social placeholders and misleading annotations cannot fall through to generic clicks.
+const placeholders = setup(); placeholders.tracker.sessionSettled();
+for (const name of ['instagram', 'tiktok', 'x', 'linkedin', 'reddit']) {
+  placeholders.click(new Element('button', {'data-social': name}));
+  placeholders.click(new Element('button', {'data-telemetry-click': 'social_' + name}));
+  placeholders.click(new Element('button', {'data-telemetry-click': 'outbound_' + name}));
+  placeholders.click(new Element('button', {'data-social': name, 'data-telemetry-click': 'contact'}));
+}
+for (const href of [undefined, '', '   ', '#', '#profile', '/contact', 'https://example.test/contact', 'https://example.test:444/contact', 'not a URL', 'https://[invalid', 'http://instagram.com/profile', 'javascript:alert(1)', 'mailto:instagram.com', 'https://instagram.com.evil.test/profile', 'https://notinstagram.com/profile', 'https://instagram.com@evil.test/profile', 'https://evil.test@instagram.com/profile', 'https://tiktok.com/profile']) {
+  const attributes = {'data-telemetry-click': 'social_instagram'};
+  if (href !== undefined) attributes.href = href;
+  placeholders.click(new Element('a', attributes));
+}
+placeholders.click(new Element('a', {href: 'https://instagram.com/profile', 'data-social': 'instagram', 'data-telemetry-click': 'social_tiktok'}));
+placeholders.click(new Element('a', {href: 'https://instagram.com/profile', 'data-telemetry-click': 'outbound_unknown'}));
+placeholders.click(new Element('a', {href: 'https://instagram.com/profile', 'data-social': '__proto__'}));
+placeholders.click(new Element('span', {'data-telemetry-click': 'contact'}, [new Element('a', {href: '#', 'data-telemetry-click': 'social_instagram'})]));
+await placeholders.flush();
+assert.deepEqual(events(placeholders).map(event => event.type), ['page_view']);
+
+// Existing social annotations and future outbound annotations require the correct exact domain or subdomain.
+const outbound = setup(); outbound.tracker.sessionSettled();
+const socialCases = [
+  ['instagram', 'https://instagram.com/profile'], ['instagram', 'https://www.instagram.com/profile?private=value'],
+  ['instagram', 'https://WWW.INSTAGRAM.COM./profile'], ['tiktok', 'https://www.tiktok.com/@profile'],
+  ['x', 'https://x.com/profile'], ['x', 'https://mobile.twitter.com/profile'],
+  ['linkedin', 'https://uk.linkedin.com/company/profile'], ['reddit', 'https://www.reddit.com/r/example'],
+  ['reddit', '//old.reddit.com/r/example']
+];
+for (const [name, href] of socialCases) outbound.click(new Element('svg', {}, [new Element('a', {'data-telemetry-click': 'social_' + name, href})]));
+outbound.click(new Element('a', {'data-telemetry-click': 'outbound_instagram', href: 'https://instagram.com/profile'}));
+outbound.click(new Element('a', {'data-social': 'tiktok', href: 'https://tiktok.com/@profile'}));
+await outbound.flush();
+assert.deepEqual(events(outbound).filter(event => event.type !== 'page_view').map(event => [event.type, event.target]), [...socialCases.map(([name]) => ['click', 'outbound_' + name]), ['click', 'outbound_instagram'], ['click', 'outbound_tiktok']]);
+assert.equal(JSON.stringify(outbound.sent.map(batch => batch.payload)).includes('profile'), false);
+assert.equal(JSON.stringify(outbound.sent.map(batch => batch.payload)).includes('private=value'), false);
+for (const [name, domain] of [['tiktok','tiktok.com'], ['x','x.com'], ['x','twitter.com'], ['linkedin','linkedin.com'], ['reddit','reddit.com']]) {
+  outbound.click(new Element('a', {'data-telemetry-click': 'outbound_' + name, href: `https://${domain}.evil.test/profile`}));
+  outbound.click(new Element('a', {'data-telemetry-click': 'social_' + name, href: `https://not${domain}/profile`}));
+}
+const outboundCount = events(outbound).length;
+await outbound.flush(); assert.equal(events(outbound).length, outboundCount);
+
+// Partners must be genuine external HTTPS anchors; buttons and empty links are placeholders.
+const partners = setup(); partners.tracker.sessionSettled();
+for (const attributes of [{class: 'partner-logo'}, {'data-partner': ''}, {'data-telemetry-click': 'partner'}, {'data-partner': '', 'data-telemetry-click': 'contact'}]) partners.click(new Element('button', attributes));
+for (const href of [undefined, '', '#', '#partner', '/contact', 'https://example.test/about', 'https://example.test:444/about', 'http://partner.example', 'mailto:partner@example.test', 'https://[invalid', 'https://user:password@partner.example']) {
+  const attributes = {class: 'partner-logo', 'data-telemetry-click': 'partner'};
+  if (href !== undefined) attributes.href = href;
+  partners.click(new Element('a', attributes));
+}
+partners.click(new Element('img', {}, [new Element('a', {class: 'partner-logo', href: 'https://partner.example/private-reference'})]));
+partners.click(new Element('a', {'data-partner': '', href: 'https://second-partner.example'}));
+partners.click(new Element('a', {'data-telemetry-click': 'partner', href: 'https://third-partner.example'}));
+await partners.flush();
+assert.deepEqual(events(partners).filter(event => event.type !== 'page_view').map(event => event.target), ['partner', 'partner', 'partner']);
+assert.equal(JSON.stringify(partners.sent.map(batch => batch.payload)).includes('private-reference'), false);
+
+// Disabled ancestors suppress every category, while aria-disabled=false retains real controls.
+const disabled = setup(); disabled.tracker.sessionSettled();
+const controls = [
+  ['button', {'data-car': 'public-car'}], ['a', {href: '/inventory'}], ['a', {href: 'mailto:hello@example.test'}],
+  ['a', {href: 'https://instagram.com/profile', 'data-telemetry-click': 'social_instagram'}],
+  ['a', {href: 'https://partner.example', class: 'partner-logo'}], ['button', {'data-telemetry-click': 'gallery'}]
+];
+for (const [tag, attributes] of controls) for (const state of [{disabled: ''}, {'aria-disabled': 'true'}, {'aria-disabled': 'TRUE'}]) {
+  disabled.click(new Element(tag, {...attributes, ...state}));
+  const ancestor = new Element('div', state), control = new Element(tag, attributes, [ancestor]);
+  disabled.click(new Element('span', {}, [control, ancestor]));
+}
+disabled.click(new Element('button', {'data-car': 'public-car', 'aria-disabled': 'false'}));
+disabled.click(new Element('a', {href: '/inventory', 'aria-disabled': 'false'}));
+disabled.click(new Element('a', {href: 'mailto:hello@example.test', 'aria-disabled': 'false'}));
+await disabled.flush();
+assert.deepEqual(events(disabled).filter(event => event.type !== 'page_view').map(event => [event.type, event.target]), [['car_view','public-car'], ['click','browse_inventory'], ['enquiry','email']]);
 
 // Public route allowlist, staff exclusion, unknown-session suppression and opt-outs.
 for (const options of [
@@ -150,4 +232,4 @@ assert.equal(new Set(large.sent.map(batch => batch.payload.visitId)).size, 1);
 const hidden = setup(); hidden.tracker.sessionSettled(); hidden.document.hidden = true; hidden.document.emit('visibilitychange'); await hidden.tick();
 assert.equal(hidden.sent.length, 1);
 const stopped = setup(); stopped.tracker.sessionSettled(); stopped.tracker.stop(); stopped.click(car()); await stopped.flush(); assert.equal(stopped.sent.length, 0);
-console.log('PASS: session-gated memory-only telemetry; public route/query dedup; single specialized events; safe categories and payloads; staff/private/form exclusions; DNT/GPC; stable IDs, bounded batching/retries and hidden/pagehide flushing.');
+console.log('PASS: verified social outbound domains; placeholder/partner/spoof/disabled exclusions; preserved car/contact/nav interactions; session-gated memory-only telemetry; public route/query dedup; safe payloads; staff/private/form exclusions; DNT/GPC; stable IDs, bounded batching/retries and hidden/pagehide flushing.');
