@@ -33,7 +33,8 @@ function addMessage(message) {
   label.className = 'e1-chat-speaker';
   label.textContent = message.role === 'user' ? 'YOU' : 'ENTITY-1 · AI';
   const content = document.createElement('p');
-  content.textContent = message.content;
+  // Keep provider emphasis readable while always rendering untrusted text safely.
+  content.textContent = message.role === 'assistant' ? message.content.replace(/\*\*([^*]+)\*\*/g, '$1') : message.content;
   bubble.append(label, content);
   feed.append(bubble);
 }
