@@ -1,5 +1,8 @@
 /* Comfortable controls without changing the desktop composition. */
 #e1-chat{z-index:80}
+@media (min-width:901px){
+  .kinetic-hero h1{font-size:clamp(72px,8.4vw,138px)}
+}
 @media (max-width:900px){
   #menu-toggle{min-width:44px;min-height:44px;flex-shrink:0}
   .header-access{min-height:44px}
@@ -8,6 +11,28 @@
   body input:not([type=checkbox]):not([type=radio]):not([type=range]),body select,body textarea{font-size:16px!important}
   .vehicle-price button{min-height:44px}
   .detail-specs dd,.stage-identity{min-width:0;overflow-wrap:anywhere}
+  .site-header #navigation{height:100dvh;padding-bottom:max(35px,env(safe-area-inset-bottom));overscroll-behavior:contain}
+  .kinetic-hero{height:auto;min-height:0;max-height:none}
+  .kinetic-top{display:block;padding:34px 6% 0}
+  .kinetic-hero h1{font-size:clamp(38px,12.5vw,92px);line-height:1;letter-spacing:-.065em;margin-top:22px}
+  .kinetic-intro{display:block;width:100%;max-width:none;margin-top:26px;padding:0}
+  .kinetic-intro .intro-asterisk{display:none}
+  .kinetic-intro>p{max-width:36ch;font-size:16px;line-height:1.55}
+  .hero-social-row{max-width:400px;flex-wrap:wrap;margin-top:20px;padding-top:12px;gap:8px 12px}
+  /* Let copy determine the car position; its own floating animation is retained. */
+  .hero-machine{position:relative;inset:auto;width:100%;height:clamp(230px,66vw,400px);margin:4px auto 0;transform:none;will-change:auto}
+  .hero-machine-word{top:12%;left:5%;font-size:14vw}
+  .kinetic-floor{position:relative;inset:auto;margin:0;padding:0 6% 30px;gap:20px;align-items:center}
+  .hero-disciplines{display:none}
+  .round-discover{width:99px;height:99px;flex:none;margin:0}
+  .hero-car-note{min-width:0;margin-left:auto}
+  .hero-car-note>span{overflow-wrap:anywhere}
+  .brand-card,.team-member,.office{min-width:0}
+  .team-member h3,.office h2{overflow-wrap:anywhere}
+}
+@media (min-width:901px) and (max-width:1100px){
+  .kinetic-hero h1{font-size:8.2vw}
+  .kinetic-top{gap:28px}
 }
 @media (max-width:360px){
   .site-header .wordmark{font-size:15px;white-space:nowrap}
@@ -22,9 +47,52 @@
   .marque-buttons{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%}
   .marque-buttons button{min-width:0;width:100%}
   .motion-toggle{min-height:44px}
+  .view-tabs{max-width:100%;gap:clamp(14px,4vw,24px)}
+  .view-tabs a,.view-tabs button{flex-shrink:0;min-height:44px;white-space:nowrap}
+  .stage-details{grid-template-columns:minmax(0,1fr) auto}
+  .stage-details dl>div{min-width:0}
+  .stage-details dd{overflow-wrap:anywhere}
+  .stage-details .silver-button{min-height:44px}
+  .region-bottom h3{font-size:clamp(30px,8.5vw,36px)}
+  .region-action{width:44px;height:44px}
+  .new-partners .partner-grid{grid-template-columns:minmax(0,1fr);gap:0;padding:0;margin-top:28px}
+  .new-partners .partner{padding:28px 18px;min-height:130px}
+  .new-partners .partner+.partner{border-left:0;border-top:1px solid #ffffff18}
+  .new-partners .partner-logo{max-width:100%;font-size:26px;line-height:1.4;overflow-wrap:anywhere}
+  .new-partners .partner-1{font-size:21px;letter-spacing:.08em}
+  .new-partners .partner-2{font-size:20px;letter-spacing:.1em}
+  .new-partners .partner-logo img{max-width:200px;max-height:66px}
+  .new-partners .partner p{font-size:11px;margin-top:12px}
+  .email-block>a,.email-block>span:not(.micro){font-size:clamp(27px,7.4vw,43px)}
+  .contact-network{display:block;padding:32px 0}
+  .contact-network>div+div{margin-top:26px}
+  .contact-network h2{font-size:clamp(34px,9vw,46px);line-height:1.1}
+  .contact-network ul{display:flex;flex-wrap:wrap;gap:10px 18px}
+  .contact-network li{min-width:0;overflow-wrap:anywhere}
+  .contact-network small{display:block;line-height:1.7}
+  .office-top{flex-wrap:wrap}
+  .office-top>span:last-child{font-size:18px}
+  .office-caption{line-height:1.7}
+  .footer-main>div:last-child{flex-wrap:wrap;gap:16px}
+  .footer-legal{flex-wrap:wrap;gap:8px 20px;align-items:center}
+  .footer-legal a{display:inline-flex;align-items:center;min-height:44px}
+  .private-world-services>a{gap:12px}
   #e1-chat .e1-chat-send{width:44px;height:44px}
   #e1-chat .e1-chat-clear,#e1-chat .e1-chat-prompts button,#e1-chat .e1-chat-retry{min-height:44px}
   #e1-chat .e1-chat-privacy a{min-height:30px;display:inline-flex;align-items:center}
+}
+@media (min-width:480px) and (max-width:900px){
+  .team-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:32px 20px}
+  .team-member .member-monogram{height:245px}
+}
+@media (max-width:380px){
+  .hero-social-row>a{flex-basis:100%}
+  .hero-social-row .social-links{justify-content:space-between;width:100%}
+  .stage-details .stage-identity h3{font-size:20px}
+  .stage-identity .brand-logo{width:28px}
+  .stage-details .silver-button{padding-left:10px;padding-right:10px}
+  .page-intro h1{font-size:clamp(43px,13.5vw,51px)}
+  .team-section .section-title h2{font-size:32px}
 }
 @media (max-width:600px){
   #e1-chat{left:max(12px,env(safe-area-inset-left));right:max(12px,env(safe-area-inset-right))}

@@ -14,7 +14,11 @@ Manage inventory and wanted listings, statuses, galleries, private notes, compan
 
 Hosted data is persistent in D1 and uploaded media in private R2 storage. Local preview uses .sites-runtime/preview.sqlite and .sites-runtime/uploads. These are separate environments; credentials, runtime databases and sessions are never committed to GitHub. Source repository: https://github.com/iddi1408/entity-one
 
-Initial content still includes sample stock, office contacts, team names and partner records. Replace these through Site Content and Listings. The white SVJ hero and cutout artwork are illustrative. Credits and licensing are recorded in public/image-credits.html and the source attribution files.
+Company details confirmed 8 October 2026: sales@entity-1.com; CEO Ahnaf Adib; CTO Idrees; executives Chris (currently India), Bhav and Jasper. Partners: Zephyra Motors, Octonox Group and RM Sotheby's. Hero: Rare cars. Private access.
+
+Pending: EU office may be Cork, Antwerp or London; US presence may be Texas or Florida. Exact office locations and phone numbers are undecided, so no office address or number is published. There is no UAE office. Monaco, Munich, Dubai, Miami and London are network locations, not office claims. Social links and the new partners' website links/logo assets can be added through Site content when provided. Existing confirmed links are preserved.
+
+Stock records still need individual verification. The white SVJ hero and cutout artwork are illustrative. Credits and licensing are recorded in public/image-credits.html and the source attribution files.
 
 Local start: START-LOCAL.cmd, or npm run dev. Preview binds to http://127.0.0.1:4174.
 Build: npm run build. Validation: npm run validate, npm test, npm run test:preview and npm run test:hosting.

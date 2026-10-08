@@ -151,17 +151,20 @@ function validateContent(data) {
   for (const key of ['headline', 'introduction', 'about', 'email']) settings[key] = text(source[key], key, 12000);
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(settings.email)) throw new HttpError(400, 'Enter a valid email address.');
   for (const key of ['heroVideo', 'aboutVideo']) settings[key] = url(source[key] ?? '', key);
-  for (const [key, max] of [['heroHeading', 200], ['heroDescription', 500], ['heroImageAlt', 200], ['heroCaption', 200]]) if (source[key] !== undefined) settings[key] = text(source[key], key, max, false);
+  for (const [key, max] of [['heroHeading', 200], ['heroDescription', 500], ['heroImageAlt', 200], ['heroCaption', 200], ['networkCities', 500]]) if (source[key] !== undefined) settings[key] = text(source[key], key, max, false);
   for (const key of ['heroImage', 'aboutImage']) if (source[key] !== undefined) settings[key] = url(source[key], key, true);
   if (!object(source.socials)) throw new HttpError(400, 'Social settings are missing.');
   settings.socials = {};
   for (const key of ['instagram', 'tiktok', 'x', 'linkedin', 'reddit']) settings.socials[key] = url(source.socials[key] ?? '', key);
   for (const [key, fields] of [['offices', ['region', 'city', 'country', 'phone']], ['members', ['name', 'position']], ['partners', ['name', 'mark']]]) {
-    const minimum = key === 'offices' ? 1 : 0, maximum = key === 'offices' ? 12 : 24;
+    const minimum = 0, maximum = key === 'offices' ? 12 : 24;
     if (!Array.isArray(source[key]) || source[key].length < minimum || source[key].length > maximum) throw new HttpError(400, `Please provide ${minimum}–${maximum} ${key}.`);
     settings[key] = source[key].map(row => {
       if (!object(row)) throw new HttpError(400, `Please check ${key}.`);
-      const clean = {}; for (const field of fields) clean[field] = text(row[field], field, 200);
+      const clean = {}; for (const field of fields) {
+        const optional = key === 'offices' && field === 'phone';
+        clean[field] = text(optional && row[field] === undefined ? '' : row[field], field, 200, !optional);
+      }
       if (key === 'partners') { clean.url = url(row.url ?? '', 'Partner website'); if (row.image !== undefined) clean.image = url(row.image, 'Partner image', true); }
       return clean;
     });

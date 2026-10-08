@@ -80,7 +80,16 @@ try {
   assert.equal(insecure.status, 403);
 
   const content = structuredClone(before.content), privateMarker = 'PRIVATE-NOTES-MUST-NOT-LEAK';
+  const recordFixtures = {
+    offices: {region: 'EU', city: 'Cork', country: 'Ireland', phone: ''},
+    members: {name: 'Test member', position: 'Test position'},
+    partners: {name: 'Test partner', mark: 'TP', url: 'https://example.test'}
+  };
+  content.settings.offices = [{...recordFixtures.offices}, {...recordFixtures.offices}];
+  delete content.settings.offices[1].phone;
+  content.settings.partners = [{...recordFixtures.partners}];
   content.settings.headline = '  Verified private collection.  ';
+  content.settings.networkCities = '  Monaco, Munich, Dubai, Miami, London  ';
   content.settings.heroHeading = 'Extraordinary automobiles'; content.settings.heroDescription = 'Selected for you';
   content.settings.heroImage = '/assets/chrome-ribbon.png'; content.settings.heroImageAlt = 'Silver sculpture'; content.settings.heroCaption = 'Private access'; content.settings.aboutImage = 'https://example.test/about.jpg';
   content.settings.partners[0].image = '/assets/chrome-ribbon.png';
@@ -95,6 +104,8 @@ try {
   assert.equal(saved.response.status, 200, JSON.stringify(saved.data)); assert.equal(saved.data.revision, 1);
   const publicView = (await request('/api/content')).data.content;
   assert.equal(publicView.settings.headline, 'Verified private collection.');
+  assert.equal(publicView.settings.networkCities, 'Monaco, Munich, Dubai, Miami, London');
+  assert.deepEqual(publicView.settings.offices.map(office => office.phone), ['', ''], 'Blank and omitted office phones normalize without inventing a number');
   assert.ok(publicView.listings.some(item => item.id === 'test-inventory-reserved'));
   assert.ok(publicView.listings.every(item => !['draft', 'sold', 'fulfilled'].includes(item.status)));
   assert.ok(!JSON.stringify(publicView).includes(privateMarker));
@@ -102,6 +113,7 @@ try {
   assert.equal(Object.keys(publicView.settings.socials).length, 5); assert.equal(publicView.settings.offices[0].privateContact, undefined);
   const adminView = (await request('/api/content', 'GET', undefined, auth.headers)).data;
   assert.equal(adminView.content.listings[0].internalNotes, privateMarker);
+  assert.equal(adminView.content.settings.networkCities, publicView.settings.networkCities, 'Network cities persist in the CMS and public projection');
   assert.equal(adminView.content.listings[0].unknownSecret, undefined); assert.equal(adminView.content.settings.secretToken, undefined);
   assert.equal(adminView.content.listings.length, content.listings.length); assert.equal(adminView.content.listings[0].gallery.length, 2);
   // Older/imported DB bodies also cross the allowlist on reads, not just on new saves.
@@ -131,6 +143,11 @@ try {
     c => { c.settings.heroVideo = 'javascript:alert(1)'; },
     c => { c.settings.heroImage = '/assets/../secret'; },
     c => { c.settings.heroImageAlt = 'x'.repeat(201); },
+    c => { c.settings.networkCities = 'x'.repeat(501); },
+    c => { c.settings.networkCities = ['Monaco']; },
+    c => { c.settings.offices = [{...recordFixtures.offices, phone: 'x'.repeat(201)}]; },
+    c => { c.settings.offices = [{...recordFixtures.offices, phone: 123}]; },
+    ...['region', 'city', 'country'].map(field => c => { c.settings.offices = [{...recordFixtures.offices, [field]: ''}]; }),
     c => { c.listings[0].gallery = Array(13).fill('/assets/car.jpg'); },
     c => { c.listings[0].gallery = ['http://example.test/car.jpg']; },
     c => { c.listings[0].status = 'active'; },
@@ -143,18 +160,23 @@ try {
 
   // The CMS supports adding/removing records within explicit limits.
   const flexible = structuredClone(before.content);
-  flexible.settings.offices = [flexible.settings.offices[0]];
+  flexible.settings.offices = [];
+  flexible.settings.networkCities = '';
   flexible.settings.members = []; flexible.settings.partners = [];
   assert.equal((await request('/api/content', 'PUT', {content: flexible, revision: 2}, auth.headers)).response.status, 200);
   const flexibleSaved = (await request('/api/content', 'GET', undefined, auth.headers)).data.content;
-  assert.equal(flexibleSaved.settings.offices.length, 1); assert.equal(flexibleSaved.settings.members.length, 0); assert.equal(flexibleSaved.settings.partners.length, 0);
-  for (const [key, amount] of [['offices', 0], ['offices', 13], ['members', 25], ['partners', 25]]) {
-    const invalid = structuredClone(before.content); invalid.settings[key] = Array.from({length: amount}, () => ({...before.content.settings[key][0]}));
+  assert.equal(flexibleSaved.settings.offices.length, 0); assert.equal(flexibleSaved.settings.members.length, 0); assert.equal(flexibleSaved.settings.partners.length, 0);
+  assert.equal(flexibleSaved.settings.networkCities, '');
+  assert.deepEqual((await request('/api/content')).data.content.settings.offices, [], 'No office is invented when office locations are undecided');
+  for (const [key, amount] of [['offices', 13], ['members', 25], ['partners', 25]]) {
+    const invalid = structuredClone(before.content); invalid.settings[key] = Array.from({length: amount}, () => ({...recordFixtures[key]}));
     assert.equal((await request('/api/content', 'PUT', {content: invalid, revision: 3}, auth.headers)).response.status, 400);
   }
   const maximum = structuredClone(before.content);
-  for (const [key, amount] of [['offices', 12], ['members', 24], ['partners', 24]]) maximum.settings[key] = Array.from({length: amount}, () => ({...before.content.settings[key][0]}));
+  maximum.settings.networkCities = 'x'.repeat(500);
+  for (const [key, amount] of [['offices', 12], ['members', 24], ['partners', 24]]) maximum.settings[key] = Array.from({length: amount}, () => ({...recordFixtures[key]}));
   assert.equal((await request('/api/content', 'PUT', {content: maximum, revision: 3}, auth.headers)).response.status, 200);
+  assert.equal((await request('/api/content')).data.content.settings.networkCities.length, 500);
 
   // Simulate a second writer committing between the read and the compare-and-swap.
   const auditCount = await count('audit_log'), backupCount = await count('content_backups');

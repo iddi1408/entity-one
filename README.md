@@ -105,7 +105,7 @@ For a complete local backup, **stop the server**, then copy the entire `.sites-r
 
 ## Content and artwork
 
-Initial stock, specifications, availability, and wanted mandates are illustrative. Replace them with verified records before sharing the site publicly. Replace the example email, EU/US/UAE phone numbers, social links, and fictional team names. RM Sotheby’s is an example, not a confirmed partnership; Aurum Collective and Monarch Automotive are placeholders. Brand marks identify marques and do not imply endorsement.
+Initial stock, specifications, availability, and wanted mandates are illustrative; each record needs independent verification. Company copy, sales email, team and partner names were supplied by the owner on 8 October 2026. Office locations and phones remain undecided and unpublished; listed network cities are not office addresses. Social links and new partner links can be added through Site content. Brand marks identify marques and do not imply endorsement.
 
 The right-facing white Aventador SVJ hero is a generative studio illustration, not documentary inventory photography. Its reference credit is **MrWalkr, Wikimedia Commons, CC BY-SA 4.0**; the reference was adapted with AI, and the adapted artwork retains that license. See [white-svj-source.json](white-svj-source.json), the [reference photograph](https://commons.wikimedia.org/wiki/File:Lamborghini_Aventador_LP770-4_SVJ_White.jpg), and [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). Other generated vehicle cutouts are also illustrative.
 

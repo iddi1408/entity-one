@@ -1,11 +1,11 @@
 {
   "settings": {
-    "headline": "Extraordinary automobiles.\nA more personal world.",
-    "introduction": "ENTITY-1 is a private entity brokerage firm specialising in off-market supercars and hypercars. We connect remarkable automobiles with the people who understand them, through a carefully cultivated international network.",
-    "about": "The most remarkable cars rarely follow an ordinary path. Neither do we. ENTITY-1 is a private entity brokerage firm specialising in off-market supercars and hypercars.\n\nWe bring owners and collectors together through a personal, discreet approach. From the initial introduction to the final handover, every detail is considered. Every connection matters.",
+    "headline": "Different backgrounds.\nOne connected entity.",
+    "introduction": "ENTITY-1 is a private entity brokerage firm specialising in high-performance, off-market automobiles. We bring together experience in sales, technology and commodities to connect exceptional cars with the people looking for them.",
+    "about": "ENTITY-1 was formed around a shared network. Our team comes from different backgrounds in sales, technology and commodities, bringing distinct experience and relationships to one private brokerage.\n\nWe combine that knowledge to source and broker high-performance, off-market cars. For owners and collectors, that means a personal introduction, a wider network and a direct conversation about what comes next.\n\nOur network spans Monaco, Munich, Dubai, Miami, London and beyond. Wherever the search begins, our approach remains personal and discreet.",
     "heroVideo": "",
     "aboutVideo": "",
-    "email": "enquiries@entity-1.example",
+    "email": "sales@entity-1.com",
     "socials": {
       "instagram": "",
       "tiktok": "",
@@ -13,57 +13,49 @@
       "linkedin": "",
       "reddit": ""
     },
-    "offices": [
-      {
-        "region": "EU",
-        "city": "London",
-        "country": "United Kingdom",
-        "phone": "+44 (0)20 XXXX XXXX"
-      },
-      {
-        "region": "US",
-        "city": "Miami",
-        "country": "United States",
-        "phone": "+1 (305) XXX XXXX"
-      },
-      {
-        "region": "UAE",
-        "city": "Dubai",
-        "country": "United Arab Emirates",
-        "phone": "+971 (0)4 XXX XXXX"
-      }
-    ],
+    "offices": [],
     "members": [
       {
-        "name": "Alexander Morgan",
-        "position": "Founder & Managing Director"
+        "name": "Ahnaf Adib",
+        "position": "Chief Executive Officer"
       },
       {
-        "name": "Sofia Laurent",
-        "position": "Head of European Brokerage"
+        "name": "Idrees",
+        "position": "Chief Technology Officer"
       },
       {
-        "name": "Omar Al Nasser",
-        "position": "Head of Gulf & Asia"
+        "name": "Chris",
+        "position": "Executive · India"
+      },
+      {
+        "name": "Bhav",
+        "position": "Executive"
+      },
+      {
+        "name": "Jasper",
+        "position": "Executive"
       }
     ],
     "partners": [
       {
+        "name": "Zephyra Motors",
+        "mark": "ZEPHYRA MOTORS",
+        "url": ""
+      },
+      {
+        "name": "Octonox Group",
+        "mark": "OCTONOX GROUP",
+        "url": ""
+      },
+      {
         "name": "RM Sotheby’s",
         "mark": "RM Sotheby’s",
         "url": "https://rmsothebys.com/"
-      },
-      {
-        "name": "Aurum Collective",
-        "mark": "A / C",
-        "url": ""
-      },
-      {
-        "name": "Monarch Automotive",
-        "mark": "M O N A R C H",
-        "url": ""
       }
-    ]
+    ],
+    "heroHeading": "Rare cars.\nPrivate access.",
+    "heroDescription": "A private brokerage for sourcing and brokering high-performance cars beyond the open market.",
+    "networkCities": "Monaco\nMunich\nDubai\nMiami\nLondon"
   },
   "listings": [
     {
