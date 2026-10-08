@@ -155,7 +155,7 @@ function validateContent(data) {
   for (const key of ['heroImage', 'aboutImage']) if (source[key] !== undefined) settings[key] = url(source[key], key, true);
   if (!object(source.socials)) throw new HttpError(400, 'Social settings are missing.');
   settings.socials = {};
-  for (const key of ['instagram', 'tiktok', 'x', 'linkedin', 'reddit']) settings.socials[key] = url(source.socials[key] ?? '', key);
+  for (const key of ['instagram', 'tiktok', 'x', 'linkedin']) settings.socials[key] = url(source.socials[key] ?? '', key);
   for (const [key, fields] of [['offices', ['region', 'city', 'country', 'phone']], ['members', ['name', 'position']], ['partners', ['name', 'mark']]]) {
     const minimum = 0, maximum = key === 'offices' ? 12 : 24;
     if (!Array.isArray(source[key]) || source[key].length < minimum || source[key].length > maximum) throw new HttpError(400, `Please provide ${minimum}–${maximum} ${key}.`);
