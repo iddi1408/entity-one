@@ -14,7 +14,7 @@
     "test:hosting": "node scripts/test-password.mjs && node --experimental-sqlite scripts/test-bootstrap.mjs && node scripts/test-hosted-media.mjs && node scripts/test-site-assets.mjs",
     "admin:provision": "node --experimental-sqlite scripts/provision-admin.mjs",
     "test:chat": "node --experimental-sqlite scripts/test-chat.mjs && node scripts/test-chat-ui.mjs",
-    "test:admin": "node scripts/test-admin-ui.mjs"
+    "test:admin": "node scripts/test-admin-ui.mjs && node scripts/test-access-ui.mjs"
   },
   "devDependencies": {
     "drizzle-kit": "^0.31.4",

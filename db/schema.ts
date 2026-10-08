@@ -24,7 +24,7 @@ export const staffUsers = sqliteTable('staff_users', {
   createdAt: integer('created_at').notNull(), updatedAt: integer('updated_at').notNull(), tempExpiresAt: integer('temp_expires_at')
 }, table => [
   check('staff_not_owner', sql`${table.id} <> 'owner'`),
-  check('staff_role', sql`${table.role} IN ('admin', 'manager', 'editor', 'viewer')`),
+  check('staff_role', sql`${table.role} IN ('owner', 'admin', 'manager', 'editor', 'viewer')`),
   check('staff_permissions_json', sql`json_valid(${table.permissions}) AND json_type(${table.permissions}) = 'array'`),
   check('staff_password_flag', sql`${table.mustChangePassword} IN (0, 1)`),
   check('staff_disabled_flag', sql`${table.disabled} IN (0, 1)`)

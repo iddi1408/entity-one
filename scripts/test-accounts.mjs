@@ -56,7 +56,7 @@ try {
   for (const input of [
     {username: 'testowner'}, {username: 'VIEWER'}, {username: 'bad name'},
     {username: 'bad\0name'}, {username: 'ok', permissions: ['secrets.read']},
-    {username: 'ok', role: 'owner'}, {username: 'ok', password: 'not-accepted'}
+    {username: 'ok', role: 'superadmin'}, {username: 'ok', password: 'not-accepted'}
   ]) assert.ok([400,409].includes((await invoke(ownerSession, 'POST', '/api/users', input)).status));
   const created = await invoke(ownerSession, 'POST', '/api/users', {username: 'EditorOne', role: 'editor', permissions: ['inventory.write']});
   assert.equal(created.status, 201);
@@ -75,6 +75,7 @@ try {
   assert.equal((await invoke(ownerSession, 'POST', '/api/users', {username: 'EDITORONE'})).status, 409);
   assert.equal((await invoke(ownerSession, 'PUT', '/api/users/owner', {disabled: true})).status, 403);
   assert.equal((await invoke(ownerSession, 'POST', '/api/users/owner/reset-password')).status, 403);
+  assert.equal((await invoke(ownerSession, 'DELETE', '/api/users/owner')).status, 403);
   assert.deepEqual(await getAccount(env, 'owner'), owner);
 
   await sessionFor(user.id); await sessionFor(user.id);
@@ -103,6 +104,7 @@ try {
   assert.equal((await invoke(delegatedSession, 'POST', '/api/users/' + delegated.id + '/reset-password')).status, 403);
   for (const proposed of [
     {username: 'blockedadmin', role: 'admin', permissions: []},
+    {username: 'blockedowner', role: 'owner', permissions: []},
     {username: 'blockedaccess', role: 'viewer', permissions: ['access.manage']},
     {username: 'blockedwrite', role: 'viewer', permissions: ['inventory.write']},
     {username: 'blockedbackup', role: 'viewer', permissions: ['backups.restore']}
@@ -145,12 +147,98 @@ try {
   await assert.rejects(invoke(ownerSession, 'PUT', '/api/users/' + user.id, {disabled: false}), /synthetic audit failure/);
   assert.deepEqual(await getAccount(env, user.id), beforeRollback); assert.equal(await auditCount(), countBeforeRollback);
   await db.prepare('DROP TRIGGER reject_account_audit').run();
+
+  // Owner is an assignable role, not an alias for access.manage. Full owner
+  // permissions are canonical even when a client submits a restricted subset.
+  assert.deepEqual(rolePermissions('owner'), PERMISSIONS.map(permission => permission.id));
+  const createdOwner = await invoke(ownerSession, 'POST', '/api/users', {username: 'SecondOwner', role: 'owner', permissions: []});
+  assert.equal(createdOwner.status, 201);
+  assert.equal(createdOwner.data.user.role, 'owner');
+  assert.deepEqual(createdOwner.data.user.permissions, rolePermissions('owner'));
+  assert.equal(createdOwner.data.user.mustChangePassword, true);
+  assert.equal((await invoke(await sessionFor(createdOwner.data.user.id), 'GET', '/api/users')).status, 403, 'A new owner must replace their temporary password');
+  await db.prepare('UPDATE staff_users SET must_change_password=0,temp_expires_at=NULL WHERE id=?').bind(createdOwner.data.user.id).run();
+  const secondOwner = await getAccount(env, createdOwner.data.user.id), secondOwnerSession = await sessionFor(secondOwner.id);
+  assert.ok(PERMISSIONS.every(permission => can(secondOwner, permission.id)));
+  assert.equal((await invoke(secondOwnerSession, 'GET', '/api/users')).status, 200);
+  const promoteTarget = await seedUser('PromoteToOwner');
+  const promoted = await invoke(secondOwnerSession, 'PUT', '/api/users/' + promoteTarget.id, {role: 'owner', permissions: ['inventory.read']});
+  assert.equal(promoted.status, 200); assert.equal(promoted.data.user.role, 'owner');
+  assert.deepEqual(promoted.data.user.permissions, rolePermissions('owner'));
+  const adminActor = await seedUser('AdministratorOnly', 'admin'), adminSession = await sessionFor(adminActor.id);
+  assert.equal((await invoke(adminSession, 'POST', '/api/users', {username: 'UnauthorizedOwner', role: 'owner'})).status, 403);
+  for (const actor of [adminSession, delegatedSession]) {
+    assert.equal((await invoke(actor, 'PUT', '/api/users/' + promoteTarget.id, {role: 'viewer'})).status, 403);
+    assert.equal((await invoke(actor, 'PUT', '/api/users/' + viewer.id, {role: 'owner'})).status, 403);
+    assert.equal((await invoke(actor, 'POST', '/api/users/' + promoteTarget.id + '/reset-password')).status, 403);
+    assert.equal((await invoke(actor, 'DELETE', '/api/users/' + delegatedCreate.data.user.id)).status, 403, 'Only owners may delete even an ordinary staff account');
+  }
+  for (const [method, suffix, input] of [['PUT','',{disabled:true}], ['PUT','',{role:'viewer'}], ['POST','/reset-password',{}], ['DELETE','',{}]]) {
+    assert.equal((await invoke(secondOwnerSession, method, '/api/users/' + secondOwner.id + suffix, input)).status, 403, 'Owners cannot lock themselves out through staff management');
+  }
+  for (const [method, suffix, input] of [['PUT','',{disabled:true}], ['POST','/reset-password',{}], ['DELETE','',{}]]) {
+    assert.equal((await invoke(secondOwnerSession, method, '/api/users/owner' + suffix, input)).status, 403, 'The permanent primary owner remains protected');
+  }
+  const resetOwner = await invoke(secondOwnerSession, 'POST', '/api/users/' + promoteTarget.id + '/reset-password');
+  assert.equal(resetOwner.status, 200); assert.equal(resetOwner.data.user.role, 'owner'); assert.ok(resetOwner.data.temporaryPassword);
+
+  // A real deletion revokes every target session and preserves both historical
+  // actor snapshots and delivery records. Account credentials never enter logs.
+  const victim = await seedUser('DeleteMe', 'editor'), victimSession = await sessionFor(victim.id);
+  await sessionFor(victim.id);
+  await db.prepare('INSERT INTO audit_log (at,action,session_id,detail,actor_id,actor_username,actor_role) VALUES (?,?,?,?,?,?,?)').bind(now(), 'content.save', victimSession.row.session_id, '{"revision":4}', victim.id, victim.username, victim.role).run();
+  const oldEvent = await db.prepare('SELECT * FROM audit_log WHERE actor_id=? ORDER BY id DESC LIMIT 1').bind(victim.id).first();
+  const beforeDelete = await auditCount();
+  assert.equal((await invoke(secondOwnerSession, 'DELETE', '/api/users/' + victim.id, {unexpected: true})).status, 400);
+  assert.equal(await auditCount(), beforeDelete); assert.equal(await sessionsCount(victim.id), 2);
+  const removed = await invoke(secondOwnerSession, 'DELETE', '/api/users/' + victim.id);
+  assert.equal(removed.status, 200); assert.deepEqual(removed.data, {deleted: true, id: victim.id});
+  assert.equal(await getAccount(env, victim.id), null); assert.equal(await findAccount(env, victim.username), null);
+  assert.equal(await sessionsCount(victim.id), 0); assert.equal(await auditCount(), beforeDelete + 1);
+  assert.deepEqual(await db.prepare('SELECT * FROM audit_log WHERE id=?').bind(oldEvent.id).first(), oldEvent);
+  assert.ok(await db.prepare('SELECT audit_id FROM audit_delivery WHERE audit_id=?').bind(oldEvent.id).first());
+  const deletionEvent = await db.prepare("SELECT * FROM audit_log WHERE action='account.deleted' ORDER BY id DESC LIMIT 1").first();
+  assert.equal(deletionEvent.actor_id, secondOwner.id); assert.equal(deletionEvent.actor_username, secondOwner.username); assert.equal(deletionEvent.actor_role, 'owner');
+  assert.equal(JSON.parse(deletionEvent.detail).targetId, victim.id); assert.equal(JSON.parse(deletionEvent.detail).username, victim.username);
+  assert.equal((await invoke(secondOwnerSession, 'DELETE', '/api/users/' + victim.id)).status, 404);
+  assert.equal((await invoke(secondOwnerSession, 'GET', '/api/users')).data.users.some(user => user.id === victim.id), false);
+  assert.equal((await invoke(secondOwnerSession, 'DELETE', '/api/users/' + promoteTarget.id)).status, 200, 'Owners can delete another staff owner');
+
+  // Delete shares the atomic session/actor/target guards used by account edits.
+  const raceVictim = await seedUser('DeleteRaceVictim'), deleteVictimSession = await sessionFor(raceVictim.id);
+  const deleteAuditBeforeRace = await auditCount(), revokedOwnerSession = await sessionFor('owner');
+  assert.equal((await invoke(revokedOwnerSession, 'DELETE', '/api/users/' + raceVictim.id, {}, {afterBody: () => db.prepare('DELETE FROM sessions WHERE token_hash=?').bind(revokedOwnerSession.tokenHash).run()})).status, 401);
+  assert.ok(await getAccount(env, raceVictim.id)); assert.equal(await auditCount(), deleteAuditBeforeRace);
+  const ownerRaceActor = await seedUser('OwnerRaceActor', 'owner'), ownerRaceSession = await sessionFor(ownerRaceActor.id);
+  const demotedDuringDelete = await invoke(ownerRaceSession, 'DELETE', '/api/users/' + raceVictim.id, {}, {env: {DB: {
+    prepare: sql => db.prepare(sql), async batch(statements) {
+      await db.prepare('UPDATE staff_users SET role=?,permissions=? WHERE id=?').bind('admin', JSON.stringify(rolePermissions('admin')), ownerRaceActor.id).run();
+      return db.batch(statements);
+    }
+  }}});
+  assert.ok([403,409].includes(demotedDuringDelete.status)); assert.ok(await getAccount(env, raceVictim.id));
+  const deleteCas = await invoke(ownerSession, 'DELETE', '/api/users/' + raceVictim.id, {}, {env: {DB: {
+    prepare: sql => db.prepare(sql), async batch(statements) {
+      await db.prepare('UPDATE staff_users SET disabled=1 WHERE id=?').bind(raceVictim.id).run();
+      return db.batch(statements);
+    }
+  }}});
+  assert.equal(deleteCas.status, 409); assert.ok(await getAccount(env, raceVictim.id));
+  assert.equal(await sessionsCount(raceVictim.id), 1); assert.equal(await auditCount(), deleteAuditBeforeRace);
+  assert.ok(await db.prepare('SELECT token_hash FROM sessions WHERE token_hash=?').bind(deleteVictimSession.tokenHash).first());
+  const beforeDeleteRollback = await getAccount(env, raceVictim.id);
+  await db.prepare("CREATE TRIGGER reject_delete_audit BEFORE INSERT ON audit_log WHEN NEW.action='account.deleted' BEGIN SELECT RAISE(ABORT, 'synthetic delete audit failure'); END").run();
+  await assert.rejects(invoke(ownerSession, 'DELETE', '/api/users/' + raceVictim.id), /synthetic delete audit failure/);
+  assert.deepEqual(await getAccount(env, raceVictim.id), beforeDeleteRollback); assert.equal(await sessionsCount(raceVictim.id), 1); assert.equal(await auditCount(), deleteAuditBeforeRace);
+  await db.prepare('DROP TRIGGER reject_delete_audit').run();
+  assert.deepEqual(await getAccount(env, 'owner'), owner, 'The enabled permanent owner survives every staff role and deletion operation');
+
   const events = (await db.prepare('SELECT * FROM audit_log').all()).results;
   assert.ok(events.length >= 6);
   for (const event of events) {
     assert.ok(event.actor_id); assert.ok(event.actor_username); assert.ok(event.actor_role);
     const detail = JSON.parse(event.detail);
-    assert.ok(detail.targetId); assert.ok(detail.username);
+    if (event.action.startsWith('account.')) { assert.ok(detail.targetId); assert.ok(detail.username); }
     assert.equal(/password|salt|hash|token/i.test(Object.keys(detail).filter(key => key !== 'mustChangePassword').join(',')), false);
     assert.equal(event.detail.includes(temporaryPassword), false); assert.equal(event.detail.includes(reset.data.temporaryPassword), false);
   }
@@ -179,5 +267,22 @@ try {
   assert.equal(legacy.prepare('SELECT COUNT(*) AS count FROM audit_delivery').get().count, 0);
   legacy.prepare("INSERT INTO audit_log (at,action,detail,actor_id,actor_username,actor_role) VALUES (2,'new-event','{}','owner','TestOwner','owner')").run();
   assert.equal(legacy.prepare('SELECT COUNT(*) AS count FROM audit_delivery').get().count, 1);
+  for (const name of ['0003_analytics.sql','0004_chat.sql']) legacy.exec(readFileSync('drizzle/' + name, 'utf8'));
+  legacy.prepare('INSERT INTO staff_users (id,username,role,permissions,salt,hash,hash_version,must_change_password,disabled,created_at,updated_at,temp_expires_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)')
+    .run('legacy-staff','LegacyStaff','editor',JSON.stringify(rolePermissions('editor')),random(),random(),PASSWORD_VERSION,1,1,12,34,56);
+  legacy.prepare("INSERT INTO sessions (token_hash,session_id,created_at,last_seen,expires,credential_version,user_id) VALUES ('staff-token','staff-session',1,1,2,'staff-version','legacy-staff')").run();
+  legacy.prepare("INSERT INTO audit_log (at,action,detail,actor_id,actor_username,actor_role) VALUES (3,'content.save','{}','legacy-staff','LegacyStaff','editor')").run();
+  const preservedTables=['administrator','staff_users','sessions','audit_log','audit_delivery'];
+  const beforeOwnerMigration=Object.fromEntries(preservedTables.map(table=>[table,legacy.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all().map(row=>({...row}))]));
+  legacy.exec(readFileSync('drizzle/0005_staff_owners.sql', 'utf8'));
+  for(const table of preservedTables)assert.deepEqual(legacy.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all().map(row=>({...row})),beforeOwnerMigration[table],`${table} survives the owner-role migration unchanged`);
+  legacy.prepare("UPDATE staff_users SET role='owner' WHERE id='legacy-staff'").run();
+  assert.equal(legacy.prepare("SELECT role FROM staff_users WHERE id='legacy-staff'").get().role,'owner');
+  assert.throws(()=>legacy.prepare("UPDATE staff_users SET role='superadmin' WHERE id='legacy-staff'").run(),/CHECK constraint/);
+  assert.throws(()=>legacy.prepare("UPDATE staff_users SET id='owner' WHERE id='legacy-staff'").run(),/CHECK constraint/);
+  assert.throws(()=>legacy.prepare("UPDATE staff_users SET permissions='{}' WHERE id='legacy-staff'").run(),/CHECK constraint/);
+  assert.throws(()=>legacy.prepare("UPDATE staff_users SET disabled=2 WHERE id='legacy-staff'").run(),/CHECK constraint/);
+  assert.throws(()=>legacy.prepare("UPDATE staff_users SET must_change_password=2 WHERE id='legacy-staff'").run(),/CHECK constraint/);
+  assert.throws(()=>legacy.prepare("INSERT INTO staff_users SELECT 'duplicate-id','LEGACYSTAFF',role,permissions,salt,hash,hash_version,must_change_password,disabled,created_at,updated_at,temp_expires_at FROM staff_users WHERE id='legacy-staff'").run(),/UNIQUE constraint/,'Username uniqueness remains case insensitive');
 } finally { legacy.close(); }
-console.log('PASS: owner preservation, safe staff DTOs, temporary password hashing/expiry, permission dependencies, delegated privilege limits, session revocation, stale-session/actor/target races, transactional audit rollback, delivery enqueue and concurrent 100-account limit. Random synthetic credentials only.');
+console.log('PASS: permanent owner protection, staff owner creation/promotion, safe DTOs, temporary passwords, delegated privilege limits, owner-only deletion, self-lockout guards, preserved audit history, session revocation, atomic races/rollback, delivery enqueue and concurrent 100-account limit. Random synthetic credentials only.');

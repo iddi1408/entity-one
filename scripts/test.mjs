@@ -110,7 +110,7 @@ try {
   assert.ok(publicView.listings.every(item => !['draft', 'sold', 'fulfilled'].includes(item.status)));
   assert.ok(!JSON.stringify(publicView).includes(privateMarker));
   assert.equal(publicView.settings.secretToken, undefined); assert.equal(publicView.extraSecret, undefined);
-  assert.equal(Object.keys(publicView.settings.socials).length, 5); assert.equal(publicView.settings.offices[0].privateContact, undefined);
+  assert.deepEqual(Object.keys(publicView.settings.socials).sort(), ['instagram', 'linkedin', 'tiktok', 'x']); assert.equal(publicView.settings.offices[0].privateContact, undefined);
   const adminView = (await request('/api/content', 'GET', undefined, auth.headers)).data;
   assert.equal(adminView.content.listings[0].internalNotes, privateMarker);
   assert.equal(adminView.content.settings.networkCities, publicView.settings.networkCities, 'Network cities persist in the CMS and public projection');

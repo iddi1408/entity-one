@@ -87,5 +87,67 @@ try {
   assert.equal((await DB.prepare('SELECT hash FROM staff_users WHERE id = ?').bind(created.user.id).first()).hash,beforeExpiry.hash,'Expired temporary password cannot finish an in-flight password change');
   assert.equal((await call('/api/session','GET',undefined,authentication(expiryLogin))).data.authenticated,false);
   assert.equal((await call('/api/session','GET',undefined,owner)).data.authenticated,true);
-  console.log(`PASS: ${assertions} staff API checks, forced password replacement, permission boundaries, private data preservation, owner protection, audit attribution, reset, revocation and in-flight temporary expiry.`);
+
+  // A staff Owner uses the normal temporary-password flow and then has full
+  // owner authority. Deletion remains owner-only, CSRF-protected and audited.
+  const roles=(await call('/api/users','GET',undefined,owner)).data;
+  assert.ok(roles.roles.some(role=>role.id==='owner'&&role.label==='Owner'));
+  const ownerCreated=(await call('/api/users','POST',{username:'second-owner',role:'owner',permissions:['inventory.read']},owner,201)).data;
+  assert.equal(ownerCreated.user.role,'owner');assert.deepEqual(ownerCreated.user.permissions,roles.permissions.map(permission=>permission.id));
+  const ownerPending=await call('/api/login','POST',{username:'second-owner',password:ownerCreated.temporaryPassword});
+  const ownerPendingAuth=authentication(ownerPending);assert.equal(ownerPending.data.mustChangePassword,true);
+  await call('/api/users','GET',undefined,ownerPendingAuth,403);
+  await call('/api/users/'+created.user.id,'DELETE',{},ownerPendingAuth,403);
+  const secondOwnerPassword=randomBytes(28).toString('base64url');
+  const secondOwnerChanged=await call('/api/account/password','POST',{currentPassword:ownerCreated.temporaryPassword,newPassword:secondOwnerPassword,confirmPassword:secondOwnerPassword},ownerPendingAuth);
+  const secondOwner=authentication(secondOwnerChanged);assert.equal(secondOwnerChanged.data.mustChangePassword,false);assert.equal(secondOwnerChanged.data.user.role,'owner');
+  await call('/api/users','GET',undefined,secondOwner);await call('/api/logs','GET',undefined,secondOwner);await call('/api/backups','GET',undefined,secondOwner);
+  for(const [method,suffix,value]of [['PUT','',{disabled:true}],['POST','/reset-password',{}],['DELETE','',{}]]){
+    await call('/api/users/'+ownerCreated.user.id+suffix,method,value,secondOwner,403);
+    await call('/api/users/owner'+suffix,method,value,secondOwner,403);
+  }
+  const deleteCreated=(await call('/api/users','POST',{username:'delete-this-staff',role:'viewer'},secondOwner,201)).data;
+  const deletePending=authentication(await call('/api/login','POST',{username:deleteCreated.user.username,password:deleteCreated.temporaryPassword}));
+  const deletePassword=randomBytes(28).toString('base64url');
+  const deleteChanged=await call('/api/account/password','POST',{currentPassword:deleteCreated.temporaryPassword,newPassword:deletePassword,confirmPassword:deletePassword},deletePending);
+  const deleteViewer=authentication(deleteChanged);
+  await call('/api/users/'+created.user.id,'DELETE',{},deleteViewer,403);
+  await call('/api/users/'+deleteCreated.user.id,'PUT',{role:'admin'},secondOwner);
+  assert.equal((await call('/api/session','GET',undefined,deleteViewer)).data.authenticated,false);
+  const deleteAdmin=authentication(await call('/api/login','POST',{username:deleteCreated.user.username,password:deletePassword}));
+  await call('/api/users','POST',{username:'unauthorized-new-owner',role:'owner'},deleteAdmin,403);
+  await call('/api/users/'+created.user.id,'PUT',{role:'owner'},deleteAdmin,403);
+  await call('/api/users/'+ownerCreated.user.id,'PUT',{role:'viewer'},deleteAdmin,403);
+  await call('/api/users/'+created.user.id,'DELETE',{},deleteAdmin,403);
+  await call('/api/users/'+ownerCreated.user.id,'DELETE',{},deleteAdmin,403);
+  const extraDeleteSession=authentication(await call('/api/login','POST',{username:deleteCreated.user.username,password:deletePassword}));
+  const beforeDeleteLogs=(await call('/api/logs','GET',undefined,secondOwner)).data.events;
+  const historicEvent=beforeDeleteLogs.find(event=>event.actor.id===deleteCreated.user.id&&event.action==='account.password_changed');assert.ok(historicEvent);
+  await call('/api/users/'+deleteCreated.user.id,'DELETE',{},{Cookie:secondOwner.Cookie},403);
+  await call('/api/users/'+deleteCreated.user.id,'DELETE',{}, {},401);
+  assert.equal((await call('/api/session','GET',undefined,deleteAdmin)).data.authenticated,true,'Denied deletion keeps the target session active');
+  const deletion=(await call('/api/users/'+deleteCreated.user.id,'DELETE',{},secondOwner)).data;
+  assert.deepEqual(deletion,{deleted:true,id:deleteCreated.user.id});
+  assert.equal((await call('/api/session','GET',undefined,deleteAdmin)).data.authenticated,false);
+  assert.equal((await call('/api/session','GET',undefined,extraDeleteSession)).data.authenticated,false);
+  await call('/api/login','POST',{username:deleteCreated.user.username,password:deletePassword},{},401);
+  await call('/api/users/'+deleteCreated.user.id,'DELETE',{},secondOwner,404);
+  assert.equal((await call('/api/users','GET',undefined,secondOwner)).data.users.some(user=>user.id===deleteCreated.user.id),false);
+  const afterDeleteLogs=(await call('/api/logs','GET',undefined,secondOwner)).data.events;
+  assert.deepEqual(afterDeleteLogs.find(event=>event.id===historicEvent.id),historicEvent,'Deleted staff retain their historical audit identity');
+  const deletionEvent=afterDeleteLogs.find(event=>event.action==='account.deleted'&&event.detail.targetId===deleteCreated.user.id);
+  assert.ok(deletionEvent);assert.equal(deletionEvent.actor.id,ownerCreated.user.id);assert.equal(deletionEvent.actor.username,'second-owner');assert.equal(deletionEvent.actor.role,'owner');assert.equal(deletionEvent.detail.username,deleteCreated.user.username);
+  const promotedOwner=(await call('/api/users/'+created.user.id,'PUT',{role:'owner',permissions:[]},secondOwner)).data.user;
+  assert.equal(promotedOwner.role,'owner');assert.deepEqual(promotedOwner.permissions,roles.permissions.map(permission=>permission.id));
+  await call('/api/users/'+created.user.id,'DELETE',{},secondOwner);
+  await call('/api/users/'+ownerCreated.user.id,'DELETE',{},owner);
+  assert.equal((await call('/api/session','GET',undefined,secondOwner)).data.authenticated,false);
+  await call('/api/login','POST',{username:'second-owner',password:secondOwnerPassword},{},401);
+  const remainingOwners=(await call('/api/users','GET',undefined,owner)).data.users.filter(user=>user.role==='owner'&&!user.disabled);
+  assert.deepEqual(remainingOwners.map(user=>user.id),['owner'],'Removing every staff owner leaves the protected primary owner');
+  await call('/api/users/owner','DELETE',{},owner,403);
+  assert.equal((await call('/api/session','GET',undefined,owner)).data.authenticated,true);
+  const finalLogs=JSON.stringify((await call('/api/logs','GET',undefined,owner)).data);
+  for(const value of [ownerCreated.temporaryPassword,secondOwnerPassword,deleteCreated.temporaryPassword,deletePassword])assert.ok(!finalLogs.includes(value),'Owner/deletion audit never contains credentials');
+  console.log(`PASS: ${assertions} staff API checks, owner creation/promotion and first-login password replacement, owner-only CSRF-protected deletion, self/primary safeguards, historical audit attribution, session revocation, permission boundaries and in-flight temporary expiry.`);
 } finally { DB.close(); }

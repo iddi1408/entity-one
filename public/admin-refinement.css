@@ -73,6 +73,7 @@
 .adm-listing-table tbody tr:hover{background:#ffffff03}
 .adm-row-actions{gap:7px;flex-wrap:wrap}
 .adm-row-actions button{min-height:40px;padding:8px 11px;font-size:12px;line-height:1.4;border-color:#444e5b;border-radius:6px;white-space:nowrap}
+.adm-row-actions .adm-danger{color:#efb3b3;border-color:#614348;background:#281e22}
 .adm-footnote{font-size:12px;line-height:1.8;color:#a0aebf}
 .adm-empty{padding:42px 24px}
 .adm-empty h3{font-size:18px;font-weight:450;line-height:1.4;color:#e1e8f1}

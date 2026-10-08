@@ -308,7 +308,8 @@ export default {
         if (address.protocol !== 'https:' && !['localhost', '127.0.0.1', '[::1]'].includes(address.hostname)) throw new HttpError(403, 'A secure connection is required.');
         // These capabilities intentionally do not exist, including for authenticated users.
         if (path === '/api/setup' || path === '/api/commit') throw new HttpError(404, 'This service does not exist.');
-        if (!['GET', 'POST', 'PUT'].includes(request.method)) throw new HttpError(405, 'Method not allowed.');
+        const staffDelete = request.method === 'DELETE' && /^\/api\/users\/[A-Za-z0-9-]{1,80}$/.test(path);
+        if (!['GET', 'POST', 'PUT'].includes(request.method) && !staffDelete) throw new HttpError(405, 'Method not allowed.');
         if (request.method !== 'GET') sameOrigin(request);
         if (path === '/api/chat/status' && request.method === 'GET') return json({available: chatAvailable(env)});
         if (path === '/api/chat' && request.method === 'POST') {

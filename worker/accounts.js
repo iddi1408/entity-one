@@ -11,6 +11,7 @@ export const PERMISSIONS = Object.freeze([
 const permissionIds = PERMISSIONS.map(permission => permission.id);
 const permissionSet = new Set(permissionIds);
 export const ROLES = Object.freeze([
+  {id: 'owner', label: 'Owner', permissions: permissionIds},
   {id: 'admin', label: 'Administrator', permissions: permissionIds},
   {id: 'manager', label: 'Manager', permissions: permissionIds.filter(id => id !== 'access.manage')},
   {id: 'editor', label: 'Editor', permissions: permissionIds.filter(id => /^(inventory|wanted|content|media)\./.test(id))},
@@ -44,11 +45,11 @@ function owner(row) {
   return row ? {...row, id: 'owner', role: 'owner', permissions: [...permissionIds], must_change_password: 0, disabled: 0, created_at: null, updated_at: null, temp_expires_at: null} : null;
 }
 export function can(user, permission) {
-  return !!user && !user.disabled && permissionSet.has(permission) && (user.id === 'owner' || Array.isArray(user.permissions) && user.permissions.includes(permission));
+  return !!user && !user.disabled && permissionSet.has(permission) && (user.role === 'owner' || Array.isArray(user.permissions) && user.permissions.includes(permission));
 }
 export function publicUser(user) {
   if (!user) return null;
-  return {id: user.id, username: user.username, role: user.role, permissions: user.id === 'owner' ? [...permissionIds] : normalizedPermissions(user.permissions),
+  return {id: user.id, username: user.username, role: user.role, permissions: user.role === 'owner' ? [...permissionIds] : normalizedPermissions(user.permissions),
     mustChangePassword: !!user.must_change_password, disabled: !!user.disabled,
     createdAt: user.created_at ?? null, updatedAt: user.updated_at ?? null, tempExpiresAt: user.temp_expires_at ?? null};
 }
@@ -76,13 +77,13 @@ function proposed(input, previous, HttpError) {
   const permissions = input.permissions !== undefined ? permissionsInput(input.permissions, HttpError)
     : input.role !== undefined || !previous ? [...roleFor(role).permissions] : [...previous.permissions];
   if (input.disabled !== undefined && typeof input.disabled !== 'boolean') throw new HttpError(400, 'The disabled setting must be true or false.');
-  return {role, permissions, disabled: input.disabled === undefined ? previous?.disabled ?? 0 : Number(input.disabled)};
+  return {role, permissions: role === 'owner' ? [...permissionIds] : permissions, disabled: input.disabled === undefined ? previous?.disabled ?? 0 : Number(input.disabled)};
 }
 function authorizeTarget(actor, target, next, HttpError) {
   if (target?.id === 'owner') throw new HttpError(403, 'The owner account cannot be changed here.');
-  if (actor.id === 'owner') return;
-  if (target?.id === actor.id) throw new HttpError(403, 'Ask the owner to change your access.');
-  if ([target, next].some(user => user && (user.role === 'admin' || user.permissions.includes('access.manage')))) throw new HttpError(403, 'Only the owner can manage privileged accounts.');
+  if (target?.id === actor.id) throw new HttpError(403, 'Ask another owner to change your access.');
+  if (actor.role === 'owner') return;
+  if ([target, next].some(user => user && (['owner', 'admin'].includes(user.role) || user.permissions.includes('access.manage')))) throw new HttpError(403, 'Only owners can manage privileged accounts.');
   if (target && target.permissions.some(permission => !can(actor, permission))) throw new HttpError(403, 'You cannot manage accounts with permissions beyond your own.');
   if (next && next.permissions.some(permission => !can(actor, permission))) throw new HttpError(403, 'You can only grant permissions you already have.');
 }
@@ -141,14 +142,16 @@ export async function handleAccountRoutes({request, env, path, session, body, js
   }
   const create = !route[1] && request.method === 'POST', update = route[1] && !route[2] && request.method === 'PUT';
   const reset = route[2] && request.method === 'POST';
-  if (!create && !update && !reset) throw new HttpError(405, 'This account action is not supported.');
+  const remove = route[1] && !route[2] && request.method === 'DELETE';
+  if (!create && !update && !reset && !remove) throw new HttpError(405, 'This account action is not supported.');
+  if (remove && actor.role !== 'owner') throw new HttpError(403, 'Only owners can delete staff accounts.');
   const input = await body(request, 16384);
   fields(input, create ? ['username', 'role', 'permissions'] : update ? ['role', 'permissions', 'disabled'] : [], HttpError);
   if (update && Object.keys(input).length === 0) throw new HttpError(400, 'Choose an account setting to change.');
   const target = create ? null : await getAccount(env, route[1]);
   if (!create && !target) throw new HttpError(404, 'That account does not exist.');
   if (target?.id === 'owner') throw new HttpError(403, 'The owner account cannot be changed here.');
-  const next = reset ? target : proposed(input, target, HttpError);
+  const next = reset || remove ? target : proposed(input, target, HttpError);
   authorizeTarget(actor, target, next, HttpError);
   let username, temporaryPassword, salt, hash;
   if (create) {
@@ -173,7 +176,10 @@ export async function handleAccountRoutes({request, env, path, session, body, js
     write = env.DB.prepare(`INSERT INTO staff_users (id, username, role, permissions, salt, hash, hash_version, must_change_password, disabled, created_at, updated_at, temp_expires_at) SELECT ?, ?, ?, ?, ?, ?, ?, 1, 0, ?, ?, ? WHERE ${guard.sql} AND (SELECT COUNT(*) FROM staff_users) < 100 AND NOT EXISTS (SELECT 1 FROM administrator WHERE username = ? COLLATE NOCASE)`).bind(id, username, next.role, JSON.stringify(next.permissions), salt, hash, PASSWORD_VERSION, time, time, detail.tempExpiresAt, ...guard.params, username);
   } else {
     const expected = targetGuard(target);
-    if (reset) {
+    if (remove) {
+      action = 'account.deleted';
+      write = env.DB.prepare(`DELETE FROM staff_users WHERE ${expected.sql} AND ${guard.sql}`).bind(...expected.params, ...guard.params);
+    } else if (reset) {
       action = 'account.password_reset';
       detail.mustChangePassword = true; detail.tempExpiresAt = time + TEMPORARY_LIFETIME;
       write = env.DB.prepare(`UPDATE staff_users SET salt = ?, hash = ?, hash_version = ?, must_change_password = 1, temp_expires_at = ?, updated_at = ? WHERE ${expected.sql} AND ${guard.sql}`).bind(salt, hash, PASSWORD_VERSION, detail.tempExpiresAt, time, ...expected.params, ...guard.params);
@@ -183,5 +189,6 @@ export async function handleAccountRoutes({request, env, path, session, body, js
     }
   }
   const user = await writeAccount({env, write, action, target: changed, detail, actor, session, HttpError});
+  if (remove) return json({deleted: true, id});
   return json({user, ...(temporaryPassword ? {temporaryPassword} : {})}, create ? 201 : 200);
 }
