@@ -8,7 +8,7 @@ import {compileWorker} from './compile-worker.mjs';
 import {createMediaStore, MAX_IMAGE_BYTES, ordinaryDirectory, PreviewError, safeFile} from './media-store.mjs';
 
 const SECURITY = {
-  'Content-Security-Policy': "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; script-src-attr 'none'; style-src 'self'; font-src 'self'; img-src 'self' https: data: blob:; media-src 'self' https: blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+  'Content-Security-Policy': "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; script-src-attr 'none'; style-src 'self'; font-src 'self'; img-src 'self' https: data: blob:; media-src 'self' https: blob:; connect-src 'self' https://api.web3forms.com; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
   'X-Content-Type-Options': 'nosniff',
   'Referrer-Policy': 'no-referrer',
   'X-Frame-Options': 'DENY',
@@ -92,7 +92,7 @@ export async function createPreviewServer({publicDirectory = path.resolve('publi
   const media = await createMediaStore(runtime);
   const code = await compileWorker({applicationPath, content: JSON.parse(await readFile(await safeFile(root, 'content.json'), 'utf8'))});
   const worker = (await import('data:text/javascript;base64,' + Buffer.from(code).toString('base64'))).default;
-  const environment = {DB};
+  const environment = {DB, WEB3FORMS_ACCESS_KEY: process.env.WEB3FORMS_ACCESS_KEY};
 
   const server = http.createServer({maxHeaderSize: 16384}, async (request, response) => {
     function send(status, bytes, headers = {}) {

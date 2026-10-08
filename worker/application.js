@@ -6,6 +6,7 @@ import {getAccount, findAccount, publicUser, can, handleAccountRoutes} from './a
 import {writeAudit, readAudit, flushAudit, retryAudit, sanitizeAuditDetail} from './audit.js';
 import {collectAnalytics, readAnalytics} from './analytics.js';
 import {chatAvailable, replyToChat} from './chat.js';
+import {contactConfig} from './contact.js';
 export {passwordHash, PASSWORD_VERSION, PASSWORD_ITERATIONS};
 
 const encoder = new TextEncoder();
@@ -15,7 +16,7 @@ const digest = async value => hex(await crypto.subtle.digest('SHA-256', encoder.
 const now = () => Math.floor(Date.now() / 1000);
 const SESSION_LIFETIME = 8 * 60 * 60, SESSION_IDLE = 30 * 60, MAX_BODY = 600000;
 const allowedPages = new Set(['/', '/inventory', '/wanted', '/about', '/contact', '/exclusive', '/admin']);
-const security = {'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'strict-origin-when-cross-origin', 'Permissions-Policy': 'camera=(), microphone=(), geolocation=()', 'Content-Security-Policy': "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' https: data: blob:; media-src 'self' https:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self' https://chatgpt.com https://*.chatgpt.com"};
+const security = {'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'strict-origin-when-cross-origin', 'Permissions-Policy': 'camera=(), microphone=(), geolocation=()', 'Content-Security-Policy': "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' https: data: blob:; media-src 'self' https:; connect-src 'self' https://api.web3forms.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self' https://chatgpt.com https://*.chatgpt.com"};
 class HttpError extends Error { constructor(status, message) { super(message); this.status = status; } }
 const json = (value, status = 200, headers = {}) => new Response(JSON.stringify(value), {status, headers: {...security, 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...headers}});
 const db = env => { if (!env.DB) throw new HttpError(503, 'The private service is unavailable. Please try again shortly.'); return env.DB; };
@@ -351,6 +352,7 @@ export default {
         const staffDelete = request.method === 'DELETE' && /^\/api\/users\/[A-Za-z0-9-]{1,80}$/.test(path);
         if (!['GET', 'POST', 'PUT'].includes(request.method) && !staffDelete) throw new HttpError(405, 'Method not allowed.');
         if (request.method !== 'GET') sameOrigin(request);
+        if (path === '/api/contact/config' && request.method === 'GET') return json(contactConfig(env));
         if (path === '/api/chat/status' && request.method === 'GET') return json({available: chatAvailable(env)});
         if (path === '/api/chat' && request.method === 'POST') {
           const input = await body(request, 6000);
@@ -456,7 +458,7 @@ export default {
       console.error('ENTITY-1 request failed', error?.name);
       return json({error: 'The service is temporarily unavailable. Please try again.'}, 503);
     } finally {
-      if (env.DISCORD_AUDIT_WEBHOOK_URL && new URL(request.url).pathname.startsWith('/api/') && !/^\/api\/(?:analytics\/events|chat(?:\/status)?)\/?$/.test(new URL(request.url).pathname) && ctx?.waitUntil) ctx.waitUntil(flushAudit(env).catch(() => {}));
+      if (env.DISCORD_AUDIT_WEBHOOK_URL && new URL(request.url).pathname.startsWith('/api/') && !/^\/api\/(?:analytics\/events|chat(?:\/status)?|contact(?:\/config)?)\/?$/.test(new URL(request.url).pathname) && ctx?.waitUntil) ctx.waitUntil(flushAudit(env).catch(() => {}));
     }
   }
 };

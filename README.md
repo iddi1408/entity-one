@@ -2,7 +2,19 @@
 
 A luxury automobile brokerage website with a private staff workspace. Open **Exclusive → Log in**, then Administration. The existing owner account controls access; public signup and separate access keys are disabled.
 
-The public website is [ENTITY-1](https://entity-one-atelier.apexfngg.chatgpt.site/). The source repository is [iddi1408/entity-one](https://github.com/iddi1408/entity-one) and is public. Sites hosts the application. Do not commit account credentials, environment secrets, runtime data, or private content exports.
+The public website is [ENTITY-1](https://entity-1.com/). The source repository is [iddi1408/entity-one](https://github.com/iddi1408/entity-one) and is public. Sites hosts the application. Do not commit account credentials, environment secrets, runtime data, or private content exports.
+
+## Contact form and email delivery
+
+The Contact page contains the enquiry form. Car enquiry buttons prefill the selected vehicle. Form entries stay in page memory until sent or the tab is reloaded/closed; they are not saved to browser storage, analytics or Discord.
+
+Email delivery uses the [Web3Forms free plan](https://web3forms.com/pricing), currently 250 submissions per month. Create a form for **sales@entity-1.com**, verify that mailbox, and set its UUID access key as the production runtime variable `WEB3FORMS_ACCESS_KEY` in Sites. Deploy a saved version to activate the setting. Do not put a mailbox password or a secret account API token in this variable: Web3Forms form access keys are intentionally public identifiers, returned by `/api/contact/config` for the supported free browser integration. The free service does not support a server-side email proxy.
+
+Choose a free notification template in Web3Forms. Each email contains labelled contact, vehicle and enquiry fields, with a readable ENTITY-1 subject and the customer's address as Reply-To. Web3Forms branding remains on the free plan. Confirm the form recipient, set the provider's submission-retention preference, and send a clearly labelled test enquiry to verify arrival in Spacemail (including Spam) before relying on delivery. A successful API response means the provider accepted the enquiry; it cannot guarantee inbox placement.
+
+The form includes a honeypot alongside the provider's spam filtering. Until the verified key is configured, it clearly offers direct email and does not claim to send anything. Provider limits, declined submissions and network failures show an error and keep the draft. No automatic email retry is performed, because an interrupted response can occur after delivery. No paid plan, file uploads, automatic customer reply, or marketing subscription is enabled. Review the monthly allowance in the provider dashboard; its free plan stops accepting submissions when the quota is exhausted.
+
+For local delivery configuration, provide only `WEB3FORMS_ACCESS_KEY` in the preview process environment. Never send test messages to real recipients from automated tests. Run `node scripts/test-contact.mjs` for configuration/CSP checks and the contact UI checks for mocked provider responses.
 
 ## Staff access and logs
 
