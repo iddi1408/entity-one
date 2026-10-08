@@ -14,7 +14,8 @@
     "test:hosting": "node scripts/test-password.mjs && node --experimental-sqlite scripts/test-bootstrap.mjs && node scripts/test-hosted-media.mjs && node scripts/test-site-assets.mjs",
     "admin:provision": "node --experimental-sqlite scripts/provision-admin.mjs",
     "test:chat": "node --experimental-sqlite scripts/test-chat.mjs && node scripts/test-chat-ui.mjs",
-    "test:admin": "node scripts/test-admin-ui.mjs && node scripts/test-access-ui.mjs"
+    "test:admin": "node scripts/test-admin-ui.mjs && node scripts/test-access-ui.mjs",
+    "test:showcase": "node scripts/test-showcase-ui.mjs && node --experimental-sqlite scripts/test-showcase-content.mjs && node scripts/test-cutout.mjs && node scripts/test-showcase-admin.mjs"
   },
   "devDependencies": {
     "drizzle-kit": "^0.31.4",
@@ -22,6 +23,7 @@
     "esbuild": "^0.25.12"
   },
   "dependencies": {
-    "@noble/hashes": "^2.4.0"
+    "@noble/hashes": "^2.4.0",
+    "onnxruntime-web": "1.30.0"
   }
 }

@@ -42,7 +42,9 @@ try {
     assert.equal(response.headers.get('X-Content-Type-Options'), 'nosniff');
     assert.equal(response.headers.get('X-Frame-Options'), 'DENY');
     assert.equal(response.headers.get('Referrer-Policy'), 'no-referrer');
-    assert.match(response.headers.get('Content-Security-Policy'), /script-src 'self';/);
+    assert.match(response.headers.get('Content-Security-Policy'), /script-src 'self' 'wasm-unsafe-eval';/);
+    assert.match(response.headers.get('Content-Security-Policy'), /worker-src 'self';/);
+    assert.doesNotMatch(response.headers.get('Content-Security-Policy'), /(?:^|\s)'unsafe-eval'(?:\s|;|$)/);
     assert.match(response.headers.get('Content-Security-Policy'), /style-src 'self';/);
     assert.doesNotMatch(response.headers.get('Content-Security-Policy'), /unsafe-inline/);
     assert.equal(response.headers.get('Cache-Control'), 'no-store');

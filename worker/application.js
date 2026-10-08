@@ -15,7 +15,7 @@ const digest = async value => hex(await crypto.subtle.digest('SHA-256', encoder.
 const now = () => Math.floor(Date.now() / 1000);
 const SESSION_LIFETIME = 8 * 60 * 60, SESSION_IDLE = 30 * 60, MAX_BODY = 600000;
 const allowedPages = new Set(['/', '/inventory', '/wanted', '/about', '/contact', '/exclusive', '/admin']);
-const security = {'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'strict-origin-when-cross-origin', 'Permissions-Policy': 'camera=(), microphone=(), geolocation=()', 'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' https: data:; media-src 'self' https:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self' https://chatgpt.com https://*.chatgpt.com"};
+const security = {'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'strict-origin-when-cross-origin', 'Permissions-Policy': 'camera=(), microphone=(), geolocation=()', 'Content-Security-Policy': "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' https: data: blob:; media-src 'self' https:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self' https://chatgpt.com https://*.chatgpt.com"};
 class HttpError extends Error { constructor(status, message) { super(message); this.status = status; } }
 const json = (value, status = 200, headers = {}) => new Response(JSON.stringify(value), {status, headers: {...security, 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...headers}});
 const db = env => { if (!env.DB) throw new HttpError(503, 'The private service is unavailable. Please try again shortly.'); return env.DB; };
@@ -144,6 +144,20 @@ function url(value, name, local = false) {
   try { const u = new URL(clean); if (u.protocol === 'https:' && !u.username && !u.password) return u.href; } catch {}
   throw new HttpError(400, `${name} must be a secure HTTPS URL${local ? ' or an /assets/ path' : ''}.`);
 }
+function showcase(value) {
+  if (!Array.isArray(value) || value.length > 12) throw new HttpError(400, 'Choose up to 12 homepage showcase cars.');
+  const ids = new Set();
+  return value.flatMap(item => {
+    if (!object(item) || Object.keys(item).some(key => !['listingId', 'image'].includes(key))) throw new HttpError(400, 'Please check the homepage showcase.');
+    const listingId = text(item.listingId, 'Showcase listing ID', 200);
+    if (/[\x00-\x1f\x7f]/.test(listingId)) throw new HttpError(400, 'Please check the showcase listing ID.');
+    const image = url(item.image, 'Showcase image', true);
+    if (!image) throw new HttpError(400, 'Choose an image for each showcase car.');
+    if (ids.has(listingId)) return [];
+    ids.add(listingId);
+    return [{listingId, image}];
+  });
+}
 // Copy only documented fields. The same normalization is applied when reading older records.
 function validateContent(data) {
   if (!object(data) || !object(data.settings) || !Array.isArray(data.listings) || data.listings.length > 300) throw new HttpError(400, 'Please check the collection.');
@@ -187,6 +201,7 @@ function validateContent(data) {
     if (listing.internalNotes !== undefined) clean.internalNotes = text(listing.internalNotes, 'Internal notes', 5000, false);
     return clean;
   });
+  if (source.showcase !== undefined) settings.showcase = showcase(source.showcase);
   return {settings, listings};
 }
 async function readContent(env) {
@@ -196,6 +211,10 @@ async function readContent(env) {
 function publicContent(content) {
   const result = validateContent(content);
   result.listings = result.listings.filter(listing => listing.type === 'inventory' ? ['available', 'reserved'].includes(listing.status) : listing.status === 'active').map(({internalNotes, ...listing}) => listing);
+  if (result.settings.showcase !== undefined) {
+    const publicIds = new Set(result.listings.filter(listing => listing.type === 'inventory').map(listing => listing.id));
+    result.settings.showcase = result.settings.showcase.filter(item => publicIds.has(item.listingId));
+  }
   return result;
 }
 function visibleContent(content, account) {
@@ -207,6 +226,13 @@ function visibleContent(content, account) {
     const {internalNotes, ...safe} = listing;
     return visible ? [safe] : [];
   });
+  if (result.settings.showcase !== undefined) {
+    const all = new Map(content.listings.map(listing => [listing.id, listing]));
+    const visibleIds = new Set(result.listings.filter(listing => listing.type === 'inventory').map(listing => listing.id));
+    result.settings.showcase = result.settings.showcase.filter(item => can(account, 'inventory.read')
+      ? !all.has(item.listingId) || all.get(item.listingId).type === 'inventory' || can(account, all.get(item.listingId).type + '.read')
+      : visibleIds.has(item.listingId));
+  }
   return result;
 }
 function permittedContent(input, existing, account) {
@@ -215,6 +241,20 @@ function permittedContent(input, existing, account) {
   if (!can(account, 'content.write')) {
     if (!same(clean.settings, visible.settings)) throw new HttpError(403, 'You cannot change site content.');
     clean.settings = existing.settings;
+  } else if (Array.isArray(existing.settings.showcase)) {
+    // A website editor may not be able to see private inventory selections.
+    // Preserve those rows when replacing the public part of the showcase.
+    const visibleRows = visible.settings.showcase || [], visibleIds = new Set(visibleRows.map(item => item.listingId));
+    const hidden = existing.settings.showcase.filter(item => !visibleIds.has(item.listingId));
+    if (hidden.length) {
+      if (same(clean.settings.showcase, visible.settings.showcase)) clean.settings.showcase = existing.settings.showcase;
+      else clean.settings.showcase = [...hidden, ...(clean.settings.showcase || [])];
+    }
+  }
+  if (can(account, 'content.write') && !can(account, 'inventory.read')) {
+    const publicIds = new Set(visible.listings.filter(item => item.type === 'inventory').map(item => item.id));
+    // Check the submitted rows, before the server merges unseen configuration.
+    if (Array.isArray(input.settings.showcase) && input.settings.showcase.some(item => !publicIds.has(item.listingId?.trim()))) throw new HttpError(403, 'Choose a public inventory car for the homepage showcase.');
   }
   for (const type of ['inventory', 'wanted']) {
     if (can(account, type + '.write')) continue;
@@ -232,7 +272,7 @@ function contentChanges(before, after) {
     const fields = a && b ? [...new Set([...Object.keys(a), ...Object.keys(b)])].filter(key => JSON.stringify(a[key]) !== JSON.stringify(b[key])) : [];
     if (!a || !b || fields.length) changes.push({id, type:item.type, brand:item.brand, model:item.model, status:item.status, action:!a ? 'created' : !b ? 'removed' : 'updated', fields});
   }
-  return {changes, settingsFields:Object.keys(after.settings).filter(key => JSON.stringify(before.settings[key]) !== JSON.stringify(after.settings[key]))};
+  return {changes, settingsFields:[...new Set([...Object.keys(before.settings), ...Object.keys(after.settings)])].filter(key => JSON.stringify(before.settings[key]) !== JSON.stringify(after.settings[key]))};
 }
 function revision(value) { if (!Number.isSafeInteger(value) || value < 0 || value >= Number.MAX_SAFE_INTEGER) throw new HttpError(400, 'Invalid content version.'); return value; }
 async function saveContent(env, input, session, action = 'content.save', restoredFrom = undefined) {

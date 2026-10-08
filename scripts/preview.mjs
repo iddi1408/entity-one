@@ -8,7 +8,7 @@ import {compileWorker} from './compile-worker.mjs';
 import {createMediaStore, MAX_IMAGE_BYTES, ordinaryDirectory, PreviewError, safeFile} from './media-store.mjs';
 
 const SECURITY = {
-  'Content-Security-Policy': "default-src 'self'; script-src 'self'; script-src-attr 'none'; style-src 'self'; font-src 'self'; img-src 'self' https: data: blob:; media-src 'self' https: blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+  'Content-Security-Policy': "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; script-src-attr 'none'; style-src 'self'; font-src 'self'; img-src 'self' https: data: blob:; media-src 'self' https: blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
   'X-Content-Type-Options': 'nosniff',
   'Referrer-Policy': 'no-referrer',
   'X-Frame-Options': 'DENY',
@@ -16,7 +16,7 @@ const SECURITY = {
   'Cross-Origin-Resource-Policy': 'same-origin',
   'Cache-Control': 'no-store',
 };
-const MIME = {'.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.avif': 'image/avif', '.gif': 'image/gif', '.ico': 'image/x-icon', '.ttf': 'font/ttf', '.woff': 'font/woff', '.woff2': 'font/woff2', '.mp4': 'video/mp4', '.webm': 'video/webm', '.pdf': 'application/pdf'};
+const MIME = {'.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.wasm': 'application/wasm', '.onnx': 'application/octet-stream', '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.avif': 'image/avif', '.gif': 'image/gif', '.ico': 'image/x-icon', '.ttf': 'font/ttf', '.woff': 'font/woff', '.woff2': 'font/woff2', '.mp4': 'video/mp4', '.webm': 'video/webm', '.pdf': 'application/pdf'};
 const JSON_LIMIT = 600000, UPLOAD_REQUEST_LIMIT = MAX_IMAGE_BYTES + 65536;
 
 function bodyBytes(request, limit) {
@@ -75,6 +75,7 @@ function isReferenced(content, uploadPath, origin) {
   }
   candidates.push(content?.settings?.heroImage, content?.settings?.aboutImage);
   for (const partner of content?.settings?.partners || []) candidates.push(partner.image);
+  for (const item of content?.settings?.showcase || []) candidates.push(item.image);
   return candidates.some(value => {
     if (typeof value !== 'string' || !value) return false;
     try { const address = new URL(value, origin); return address.origin === origin && address.pathname === uploadPath; } catch { return false; }

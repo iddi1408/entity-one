@@ -1,0 +1,31 @@
+ENTITY-1 background-removal tool — third-party notices
+
+The administration image tool uses U2NETp for foreground segmentation and
+ONNX Runtime Web 1.30.0 for inference inside the administrator's browser.
+The original photograph is retained; the generated image is a separate PNG.
+
+U2-Net / U2NETp
+Authors: Xuebin Qin and the U2-Net contributors
+Source: https://github.com/xuebinqin/U-2-Net
+License: Apache-2.0; see U2NET-LICENSE.txt in this directory.
+ONNX model distributed by rembg:
+https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2netp.onnx
+Model SHA-256:
+309c8469258dda742793dce0ebea8e6dd393174f89934733ecc8b14c76f4ddd8
+The ONNX model is copied without modification. ENTITY-1 supplies its own
+browser preprocessing, alpha composition and cropping code.
+
+rembg
+Copyright (c) 2020 Daniel Gatis
+Source: https://github.com/danielgatis/rembg
+License: MIT; see REMBG-LICENSE.txt in this directory.
+
+ONNX Runtime
+Copyright (c) Microsoft Corporation. All rights reserved.
+Source: https://github.com/microsoft/onnxruntime
+Package: onnxruntime-web@1.30.0
+License: MIT; see ONNXRUNTIME-LICENSE.txt and
+ONNXRUNTIME-ThirdPartyNotices.txt in this directory.
+
+The runtime and model are built into public/assets/cutout-runtime from pinned
+dependencies and verified upstream assets by scripts/prepare-cutout-assets.mjs.

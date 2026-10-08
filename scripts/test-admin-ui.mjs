@@ -65,6 +65,8 @@ function harness(permissions=allPermissions){
     async api(url,options={}){requests.push({url,options});return url==='/backups'?{backups:[]}:url==='/media'?{media:[]}:{recentAudit:[]};},
     async loadContent(){},async saveContent(content){saves.push(structuredClone(content));state.adminData=content;},
     clearAccessData(){},clearAnalyticsData(){},async ensureAccessData(){},async ensureAnalyticsData(){},
+    renderShowcaseEditor:()=>'<section id="showcase-editor">Homepage showcase</section>',
+    bindShowcaseAdmin(){},readShowcaseSettings:()=>structuredClone(state.adminData.settings.showcase||[]),clearShowcaseAdmin(){},syncShowcaseSaveState(){},
     accessPanel:()=>'<div>Account access</div>',passwordGate:()=>'<div>Password change required</div>',logsPanel:()=>'<div>Activity logs</div>',analyticsPanel:()=>'<div>Measured analytics</div>',bindAccess(){},bindAnalytics(){},
     navigator:{clipboard:{async writeText(){}}},crypto:webcrypto,structuredClone,Blob,URL,FormData,Intl,Date,setTimeout(){},clearTimeout(){},console
   });

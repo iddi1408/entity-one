@@ -71,6 +71,7 @@ function referenced(content, pathname, origin) {
     if (Array.isArray(listing.gallery)) images.push(...listing.gallery);
   }
   for (const partner of content?.settings?.partners || []) images.push(partner.image);
+  for (const item of content?.settings?.showcase || []) images.push(item.image);
   return images.some(value => {
     if (typeof value !== 'string' || !value) return false;
     try { const image = new URL(value, origin); return image.origin === origin && image.pathname === pathname; }
