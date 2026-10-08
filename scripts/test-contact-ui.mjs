@@ -56,4 +56,17 @@ seed();const fallback=new URL(contact.emailUrl('sales@entity-1.com'));assert.equ
 context.location.search='?car=wanted-1';const html=contact.contactForm({email:'sales@entity-1.com'},[{id:'wanted-1',type:'wanted',brand:'Ferrari',model:'F40',internalNotes:'NEVER PUBLIC'},{id:'hidden',type:'inventory',status:'draft',brand:'SECRET',model:'PRIVATE'}],true);
 assert.match(html,/Ferrari F40/);assert.match(html,/value="sell" selected/);assert.ok(!html.includes('NEVER PUBLIC'));assert.ok(!html.includes('SECRET'));
 assert.match(html,/autocomplete="email"/);assert.match(html,/type="tel"/);assert.match(html,/analytics-notice.html#contact-enquiries/);
+context.location.search='?intent=source';
+assert.match(contact.contactForm({email:'sales@entity-1.com'},[],true),/value="source" selected/,'Concierge handoff preselects sourcing');
+context.location.search='?intent=untrusted';
+assert.equal(contact.inspect().draft.intent,'source','Unknown handoff intents do not change the draft');
+contact.contactForm({email:'sales@entity-1.com'},[],true);
+assert.equal(contact.inspect().draft.intent,'source');
+context.location.search='?car=inventory-1';
+contact.contactForm({email:'sales@entity-1.com'},[{id:'inventory-1',type:'inventory',brand:'Porsche',model:'911'}],true);
+assert.equal(contact.inspect().draft.intent,'buy');
+context.location.search='?intent=source';
+contact.contactForm({email:'sales@entity-1.com'},[],true);
+assert.equal(contact.inspect().draft.intent,'source','Repeated sourcing handoff replaces the intervening car intent');
+assert.equal(contact.inspect().draft.vehicle,'','Generic handoff removes only the previous automatically selected vehicle');
 console.log('PASS: contact form configuration, validation, provider failures, duplicate prevention, draft retention, success-only reset, email fallback and public car prefilling. No external requests.');
