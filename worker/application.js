@@ -149,14 +149,16 @@ function showcase(value) {
   if (!Array.isArray(value) || value.length > 12) throw new HttpError(400, 'Choose up to 12 homepage showcase cars.');
   const ids = new Set();
   return value.flatMap(item => {
-    if (!object(item) || Object.keys(item).some(key => !['listingId', 'image'].includes(key))) throw new HttpError(400, 'Please check the homepage showcase.');
+    if (!object(item) || Object.keys(item).some(key => !['listingId', 'image', 'scale'].includes(key))) throw new HttpError(400, 'Please check the homepage showcase.');
     const listingId = text(item.listingId, 'Showcase listing ID', 200);
     if (/[\x00-\x1f\x7f]/.test(listingId)) throw new HttpError(400, 'Please check the showcase listing ID.');
     const image = url(item.image, 'Showcase image', true);
     if (!image) throw new HttpError(400, 'Choose an image for each showcase car.');
+    if (item.scale !== undefined && (typeof item.scale !== 'number' || !Number.isFinite(item.scale) || item.scale < .65 || item.scale > 1.15)) throw new HttpError(400, 'Showcase car size must be between 65% and 115%.');
+    const scale = item.scale === undefined ? 1 : Math.round(item.scale * 100) / 100;
     if (ids.has(listingId)) return [];
     ids.add(listingId);
-    return [{listingId, image}];
+    return [{listingId, image, ...(scale === 1 ? {} : {scale})}];
   });
 }
 // Copy only documented fields. The same normalization is applied when reading older records.

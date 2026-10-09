@@ -1,0 +1,8 @@
+Asset: public/assets/ferrari-sf90-cutout-clean.png
+Created 2026-10-09 with the built-in image editing tool; transparent_background=true.
+Edit target: the existing public SF90 listing photo /assets/uploads/11bada7e-9700-4f61-b94c-1b7dc6c9bcc5.jpg.
+Purpose: optional prepared showcase cutout. The original inventory photo is unchanged.
+This is an AI-edited derivative and is not a substitute for the original listing photograph.
+
+Prompt:
+Use case: background-extraction. Edit target: the supplied actual black Ferrari SF90 photograph, for its real vehicle listing on ENTITY-1. Extract ONLY the exact photographed car onto real alpha transparency. Remove all pavement, buildings, plants, planters/plant pots, sky and all other background, including the two pots immediately behind the roof/rear. Carefully preserve the ENTIRE real car unchanged: the original camera angle, perspective, silhouette, front splitter, both wing mirrors, wheels and tyres, window tint, badges, body panels, proportions and all original reflections (including the red reflection along the side). Do not redesign, repaint, rotate, relight, retouch or invent any vehicle detail. No studio replacement, no added shadows, no text, no other objects. Keep a small even transparent margin around the isolated car. High quality sharp edges, genuine transparent PNG.

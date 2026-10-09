@@ -52,14 +52,16 @@ export function subjectBounds(pixels, width, height) {
   return {left, top, width: right - left + 1, height: bottom - top + 1, visible};
 }
 
-export function fitCutoutToFrame(source, bounds, frame) {
+export function fitCutoutToFrame(source, bounds, frame, requestedScale = 1) {
   if (![source.width, source.height, bounds?.width, bounds?.height, frame.width, frame.height].every(value => Number.isFinite(value) && value > 0)) return null;
   const pad = cutoutPadding(bounds);
-  const scale = Math.min(frame.width / (bounds.width + pad * 2), frame.height / (bounds.height + pad * 2));
+  const adjustment = Number.isFinite(requestedScale) ? Math.min(1.15, Math.max(.65, requestedScale)) : 1;
+  const baseline = frame.height * .93;
+  const scale = Math.min(frame.width / (bounds.width + pad * 2), baseline / (bounds.height + pad * 2)) * Math.min(1, .82 * adjustment);
   return {
     width: source.width * scale, height: source.height * scale,
     left: (frame.width - bounds.width * scale) / 2 - bounds.left * scale,
-    top: (frame.height - bounds.height * scale) / 2 - bounds.top * scale
+    top: baseline - (bounds.top + bounds.height) * scale
   };
 }
 
@@ -94,7 +96,8 @@ function measure(image) {
 function position(image) {
   const data = prepared.get(image), frame = image.parentElement;
   if (!data || !frame?.classList.contains('cutout-frame')) return;
-  const fit = fitCutoutToFrame(data.source, data.bounds, {width: frame.clientWidth, height: frame.clientHeight});
+  const requestedScale = frame.dataset.cutoutScale === undefined ? 1 : Number(frame.dataset.cutoutScale);
+  const fit = fitCutoutToFrame(data.source, data.bounds, {width: frame.clientWidth, height: frame.clientHeight}, requestedScale);
   if (!fit) return;
   for (const key of ['width', 'height', 'left', 'top']) image.style[key] = `${fit[key]}px`;
 }
@@ -131,6 +134,11 @@ export function bindCutoutFrames() {
   };
   new MutationObserver(records => {
     for (const record of records) {
+      if (record.type === 'attributes') {
+        const image = record.target.querySelector('img[data-cutout-fit]');
+        if (image) position(image);
+        continue;
+      }
       record.addedNodes.forEach(scan);
       for (const root of record.removedNodes) {
         if (root.nodeType !== 1) continue;
@@ -138,6 +146,6 @@ export function bindCutoutFrames() {
         root.querySelectorAll('.cutout-frame').forEach(frame => resizeObserver?.unobserve(frame));
       }
     }
-  }).observe(document.body, {childList: true, subtree: true});
+  }).observe(document.body, {childList: true, subtree: true, attributes: true, attributeFilter: ['data-cutout-scale']});
   document.querySelectorAll('img[data-cutout-fit]').forEach(prepare);
 }

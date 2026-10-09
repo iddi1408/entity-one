@@ -65,6 +65,13 @@ try{
   }
   result=await contentFor(owner);result.content.settings.showcase=[{listingId:' live ',image:' https://images.example.com/car.png '},{listingId:'live',image:images.live}];
   await call('/api/content','PUT',result,owner);equal((await stored()).settings.showcase,[{listingId:'live',image:'https://images.example.com/car.png'}],'Repeated IDs keep the first normalized selection');
+  for(const scale of [null,'0.8',false,0,.64,1.16,{},[]]){
+    const before=await stored(),draft=await contentFor(owner);draft.content.settings.showcase=[{listingId:'live',image:images.live,scale}];await call('/api/content','PUT',draft,owner,400);equal(await stored(),before,'Invalid size never changes saved content');
+  }
+  for(const scale of [.65,.82,1,1.15]){
+    result=await contentFor(owner);result.content.settings.showcase=[{listingId:'live',image:images.live,scale}];await call('/api/content','PUT',result,owner);
+    equal((await contentFor()).content.settings.showcase,[{listingId:'live',image:images.live,...(scale===1?{}:{scale})}],'Public settings retain a bounded size and omit the default');
+  }
   result=await contentFor(owner);result.content.listings.push({...template,id:'car. with spaces',status:'available',featured:false});result.content.settings.showcase=[{listingId:'car. with spaces',image:images.live}];
   await call('/api/content','PUT',result,owner);equal((await contentFor()).content.settings.showcase[0].listingId,'car. with spaces','Existing listing IDs are supported without a stricter ID alphabet');
   result=await contentFor(owner);result.content.settings.showcase=Array.from({length:12},(_,i)=>({listingId:'historical-'+i,image:images.missing}));

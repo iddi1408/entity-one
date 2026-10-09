@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import vm from 'node:vm';
-import {defaultShowcase,stockCutout} from '../public/showcase-config.js';
+import {defaultShowcase,stockCutout,showcaseScale} from '../public/showcase-config.js';
 
 // Run the actual editor with deterministic DOM, image-engine and API boundaries.
 // Image segmentation/alpha validation are separately exercised by cutout tests.
@@ -31,7 +31,7 @@ function harness({content=fixture(),permissions=['content.write','media.write']}
  function node(attrs={}){
   const children=new Map();
   return {isConnected:true,dataset:{},disabled:false,hidden:false,value:'',textContent:'',innerHTML:'',...attrs,
-   classList:{toggle(){}},replaceChildren(value){this.textContent=String(value);},focus(){},
+   classList:{toggle(){}},replaceChildren(value){this.textContent=String(value);},focus(){},setAttribute(name,value){this[name]=value;},
    querySelector(selector){if(!children.has(selector))children.set(selector,node());return children.get(selector);},
    querySelectorAll(){return [];},closest(){return null;},hasAttribute(name){return Object.hasOwn(attrs,name);}
   };
@@ -43,7 +43,7 @@ function harness({content=fixture(),permissions=['content.write','media.write']}
  };
  class TestFormData{constructor(){this.fields=new Map();}set(name,value,filename){this.fields.set(name,{value,filename});}get(name){return this.fields.get(name)?.value;}}
  const context=vm.createContext({
-  state,h:escape,safeUrl:value=>value,defaultShowcase,stockCutout,bindCutoutFrames:()=>{},document,location:{origin:'https://example.test'},
+  state,h:escape,safeUrl:value=>value,defaultShowcase,stockCutout,showcaseScale,bindCutoutFrames:()=>{},document,location:{origin:'https://example.test'},
   can:permission=>state.session.authenticated&&state.session.user.permissions.includes(permission),
   MutationObserver:class{constructor(callback){observers.push(callback);}observe(){}},
   async fetch(url,options){fetches.push({url,...options});return {ok:true,headers:{get:()=>null},blob:async()=>new Blob(['source'],{type:'image/jpeg'})};},
@@ -76,6 +76,7 @@ function harness({content=fixture(),permissions=['content.write','media.write']}
   read(){return JSON.parse(JSON.stringify(context.ui.readShowcaseSettings(form)));},
   async click(attrs){await dispatch('click',button(attrs));},
   async choose(key,value){const target=node({value,dataset:{showcaseCar:key}});target.closest=selector=>selector==='#settings-form'?form:null;await dispatch('change',target);},
+  async resize(key,value){const target=node({value,dataset:{showcaseScale:key}});target.closest=selector=>selector==='#settings-form'?form:null;await dispatch('input',target);},
   async upload(key,file,transparent=false){const target=node({files:[file],dataset:{[transparent?'showcaseCutout':'showcaseSource']:key}});target.closest=selector=>selector==='#settings-form'?form:null;await dispatch('change',target);},
   setEngine(callback){engine=callback;},setValidation(callback){validation=callback;},
   detach(){form.isConnected=false;root=null;for(const callback of observers)callback();},
@@ -93,6 +94,20 @@ async function until(predicate){for(let attempt=0;attempt<30&&!predicate();attem
  contains(html,'value="reserved"');omits(html,'value="draft"');omits(html,'value="sold"');omits(html,'value="wanted"');
  equal(h.requests.length,0);equal(h.engineCalls,0);
  const empty=fixture();empty.settings.showcase=[];const off=harness({content:empty});off.mount();equal(off.read(),[]);contains(off.markup,'showcase is hidden');
+}
+// Size changes are previewed and drafted immediately, remain bounded, and do
+// not perform media work or save content until the form is submitted.
+{
+ const content=fixture();content.settings.showcase=[{listingId:'porsche',image:'/assets/porsche-cutout.png',scale:.85}];
+ const h=harness({content});h.mount();const key=h.keys()[0];contains(h.markup,'Car size');contains(h.markup,'data-cutout-scale="0.85"');contains(h.markup,'aria-valuetext="85 percent"');equal(h.read()[0].scale,.85);
+ const preview=h.form.querySelector(`[data-showcase-row="${key}"]`);
+ await h.resize(key,'70');equal(h.read()[0].scale,.7);equal(preview.querySelector('.adm-showcase-image-frame').dataset.cutoutScale,'0.7');equal(preview.querySelector('[data-showcase-scale-output]').textContent,'70%');equal(preview.querySelector('[data-showcase-scale-reset]').disabled,false);
+ equal(h.requests.length,0);equal(h.engineCalls,0);equal(content.settings.showcase[0].scale,.85,'Size remains a draft');
+ for(const invalid of ['0','64','116','Infinity','bad'])await h.resize(key,invalid);equal(h.read()[0].scale,.7,'Forged out-of-range inputs are ignored');
+ await h.resize(key,'115');equal(h.read()[0].scale,1.15);await h.click({'data-showcase-scale-reset':key});ok(!Object.hasOwn(h.read()[0],'scale'),'Reset retains the legacy compact representation');equal(preview.querySelector('[data-showcase-scale-output]').textContent,'100%');equal(preview.querySelector('[data-showcase-scale-reset]').disabled,true);
+ await h.resize(key,'80');await h.choose(key,'ferrari');ok(!Object.hasOwn(h.read()[0],'scale'),'Choosing another car resets its size');
+ const readOnly=harness({content,permissions:[]});readOnly.mount();await readOnly.resize(readOnly.keys()[0],'65');equal(readOnly.dirty,0);omits(readOnly.markup,'data-showcase-scale-reset');
+ const locked=harness({content});locked.mount();locked.form.dataset.showcaseSaving='true';await locked.resize(locked.keys()[0],'65');equal(locked.read()[0].scale,.85,'Saving locks size adjustments');
 }
 // Ordered rows can move and be removed without editing inventory or writing
 // settings. Empty rows and duplicate brands never reach the save payload.
@@ -127,6 +142,14 @@ async function until(predicate){for(let attempt=0;attempt<30&&!predicate();attem
 
 // New non-stock selections automatically prepare then upload an image; the
 // result remains a draft until the surrounding settings form explicitly saves.
+{
+ const content=fixture(),originalImage='/assets/uploads/11bada7e-9700-4f61-b94c-1b7dc6c9bcc5.jpg',cleanImage='/assets/ferrari-sf90-cutout-clean.png';
+ content.listings.push(car('sf90','Ferrari',{model:'SF90',image:originalImage}));content.settings.showcase=[{listingId:'sf90',image:'/assets/uploads/rough-cutout.png',scale:.8}];
+ const h=harness({content,permissions:['content.write']});h.mount();contains(h.markup,'Use prepared cutout');const key=h.keys()[0];await h.click({'data-showcase-prepared':key});equal(h.read()[0],{listingId:'sf90',image:cleanImage,scale:.8});omits(h.markup,'data-showcase-prepared');equal(h.requests.length,0);equal(h.engineCalls,0);equal(content.settings.showcase[0].image,'/assets/uploads/rough-cutout.png','Prepared replacement remains a draft');ok(h.dirty>0);
+ const readOnly=harness({content,permissions:[]});readOnly.mount();omits(readOnly.markup,'data-showcase-prepared');await readOnly.click({'data-showcase-prepared':readOnly.keys()[0]});equal(readOnly.dirty,0,'Read-only staff cannot replace a cutout');
+ const saving=harness({content});saving.mount();saving.form.dataset.showcaseSaving='true';await saving.click({'data-showcase-prepared':saving.keys()[0]});equal(saving.read()[0].image,'/assets/uploads/rough-cutout.png','Saving locks prepared replacements');
+ const wrong=structuredClone(content);wrong.listings.find(car=>car.id==='sf90').image='/assets/uploads/different-sf90.jpg';const unmatched=harness({content:wrong});unmatched.mount();omits(unmatched.markup,'data-showcase-prepared');await unmatched.click({'data-showcase-prepared':unmatched.keys()[0]});equal(unmatched.read()[0].image,'/assets/uploads/rough-cutout.png','Forged replacements cannot apply a cutout from another photo');equal(unmatched.dirty,0);
+}
 {
  const h=harness();h.mount();const pending=deferred();h.setEngine(()=>pending.promise);const choice=h.choose(h.keys()[0],'custom');
  await until(()=>h.engineCalls===1);equal(h.saveButtons[0].disabled,true);throws(()=>h.read(),/Finish or cancel/);equal(h.requests.length,0);

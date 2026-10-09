@@ -1,20 +1,27 @@
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import vm from 'node:vm';
-import {defaultShowcase,showcaseEntries,stockCutout} from '../public/showcase-config.js';
+import {defaultShowcase,showcaseEntries,stockCutout,showcaseScale} from '../public/showcase-config.js';
 
 const seed=JSON.parse(await readFile('public/content.json','utf8'));
 const original=JSON.stringify(seed),defaults=defaultShowcase(seed);
 assert.equal(defaults.length,3);
 assert.ok(defaults.every(row=>/cutout\.png$/.test(row.image)));
 assert.equal(stockCutout({...seed.listings[0],image:'/assets/custom.png'}),null);
+const preparedSF90={id:'prepared-sf90',brand:'Ferrari',model:'SF90',image:'/assets/uploads/11bada7e-9700-4f61-b94c-1b7dc6c9bcc5.jpg',type:'inventory',status:'available'};
+assert.equal(stockCutout(preparedSF90),'/assets/ferrari-sf90-cutout-clean.png');
+for(const override of [{brand:'Porsche'},{model:'SF90 Stradale'},{image:'/assets/uploads/different-sf90.jpg'}])assert.equal(stockCutout({...preparedSF90,...override}),null,'A prepared cutout is only matched to the exact source photo and car model');
+assert.deepEqual(defaultShowcase({...seed,listings:[preparedSF90,...seed.listings]}),defaults,'Prepared replacements never change the default selected cars');
 assert.equal(JSON.stringify(seed),original,'Resolvers never mutate content');
+for(const value of [undefined,null,'0.8',0,.64,1.16,Infinity,NaN])assert.equal(showcaseScale(value),1,'Invalid sizes safely retain the default');
+for(const value of [.65,.8,1,1.15])assert.equal(showcaseScale(value),value,'Bounded sizes are preserved');
 assert.deepEqual(showcaseEntries({...seed,settings:{...seed.settings,showcase:[]}}),[],'Empty selection hides showcase');
 const ferrari=seed.listings.find(car=>car.brand==='Ferrari'&&car.type==='inventory');
 const porsche=seed.listings.find(car=>car.brand==='Porsche'&&car.type==='inventory');
 const second={...ferrari,id:'second-ferrari',model:'SF90',image:'/assets/sf90.jpg',featured:false};
 const configured={settings:{...seed.settings,showcase:[{listingId:second.id,image:'/assets/sf90-cutout.png'},{listingId:porsche.id,image:'/assets/porsche-cutout.png'}]},listings:[...seed.listings,second]};
 assert.deepEqual(showcaseEntries(configured).map(row=>row.car.id),[second.id,porsche.id],'Explicit car and order override first brand listing');
+assert.equal(showcaseEntries({...configured,settings:{showcase:[{...configured.settings.showcase[0],scale:.75}]}})[0].scale,.75,'A saved size is exposed to the public stage');
 assert.equal(showcaseEntries({...configured,listings:configured.listings.map(car=>({...car,featured:false}))}).length,2,'Featured grid flag is independent');
 for(const status of ['draft','sold'])assert.ok(!showcaseEntries({...configured,listings:configured.listings.map(car=>car.id===second.id?{...car,status}:car)}).some(row=>row.listingId===second.id),'Private/sold car cannot render');
 for(const image of ['','javascript:alert(1)','http://example.test/car.png','/assets/../private.png','https://user:pass@example.test/car.png'])assert.equal(showcaseEntries({listings:[second],settings:{showcase:[{listingId:second.id,image}]}}).length,0,'Unsafe images rejected');

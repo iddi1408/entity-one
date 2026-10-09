@@ -24,6 +24,14 @@
 .adm-showcase-preview .adm-showcase-image-frame+span{position:absolute;bottom:0;left:0;right:0;background:#0c1116c9;padding:7px 10px;font-size:11px;color:#aebac7}
 .adm-form .adm-showcase-controls>label{font-size:13px;margin:0 0 14px;gap:8px}
 .adm-form .adm-showcase-controls select{width:100%;font-size:13px;min-height:44px;padding:10px 12px;text-overflow:ellipsis}
+.adm-showcase-size{padding:12px 14px;margin:0 0 16px;border:1px solid #2c3742;border-radius:6px;background:#12191f}
+.adm-showcase-size-head{display:flex;align-items:center;gap:10px;min-height:30px}
+.adm-form .adm-showcase-size-head label{font-size:13px;margin:0;color:#cdd5df}
+.adm-showcase-size-head output{margin-left:auto;font-size:12px;font-variant-numeric:tabular-nums;color:#e0e6ec}
+.adm-showcase-size-head .adm-text{min-height:44px;min-width:44px;padding:4px 8px;font-size:12px;text-decoration:underline;text-underline-offset:3px}
+.adm-form .adm-showcase-size input[type=range]{display:block;width:100%;height:44px;min-height:44px;margin:0;padding:0;border:0;background:transparent;accent-color:#dce3ec;cursor:pointer}
+.adm-form .adm-showcase-size input[type=range]:disabled{cursor:not-allowed;opacity:.45}
+.adm-showcase-size p{font-size:11px;line-height:1.6;color:#91a1b2;margin:0}
 .adm-showcase-image-actions{display:flex;flex-wrap:wrap;gap:8px}
 .adm-showcase-image-actions .adm-secondary{font-size:12px;min-height:44px;gap:8px;padding:10px 12px}
 .adm-form .adm-showcase-image-actions .adm-file-button{margin:0;display:flex!important;font-size:12px;color:#ccd5df}

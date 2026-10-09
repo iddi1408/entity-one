@@ -1,6 +1,6 @@
 import {state,h,safeUrl,api} from './app.js';
 import {can} from './access.js';
-import {defaultShowcase,stockCutout} from './showcase-config.js';
+import {defaultShowcase,stockCutout,showcaseScale} from './showcase-config.js';
 import {bindCutoutFrames} from './cutout-frame.js';
 
 const LIMIT=12,MAX_IMAGE_BYTES=8*1024*1024;
@@ -45,12 +45,14 @@ function rowHtml(row,index){
  const usedBrands=new Set(draft.rows.filter(other=>other!==row).map(other=>brandKey(cars.find(car=>car.id===other.listingId))).filter(Boolean));
  const media=can('media.write'),write=can('content.write'),busy=!!activeJob,disabled=!write||busy;
  const image=row.image||car?.image||'',name=car?`${car.brand} ${car.model}`:allCar?`${allCar.brand} ${allCar.model}`:'Choose a car';
+ const preparedImage=stockCutout(car);
  const selectedMissing=row.listingId&&!car;
  return `<article class="adm-showcase-card" data-showcase-row="${h(row.key)}">
   <div class="adm-showcase-card-head"><span class="adm-showcase-order">${String(index+1).padStart(2,'0')}</span><div><strong>${h(name)}</strong><small>${row.image?'Cutout ready for review':car?'Prepare an image without its background':'One car per brand'}</small></div>${write?`<div class="adm-showcase-order-actions"><button type="button" class="adm-secondary" data-showcase-up="${h(row.key)}" aria-label="Move ${h(name)} up" ${disabled||index===0?'disabled':''}>↑</button><button type="button" class="adm-secondary" data-showcase-down="${h(row.key)}" aria-label="Move ${h(name)} down" ${disabled||index===draft.rows.length-1?'disabled':''}>↓</button><button type="button" class="adm-text" data-showcase-remove="${h(row.key)}" ${disabled?'disabled':''}>Remove</button></div>`:''}</div>
-  <div class="adm-showcase-card-body"><div class="adm-showcase-preview ${row.image?'':'is-source'}">${image?`<div class="adm-showcase-image-frame ${row.image?'cutout-frame':''}"><img ${row.image?'data-cutout-fit':''} src="${h(safeUrl(image))}" alt="${h(row.image?'Background-free preview of '+name:'Original photo of '+name)}"></div><span>${row.image?'Showcase preview':'Original listing photo'}</span>`:'<span>Choose a car to see its preview</span>'}</div><div class="adm-showcase-controls">
+  <div class="adm-showcase-card-body"><div class="adm-showcase-preview ${row.image?'':'is-source'}">${image?`<div class="adm-showcase-image-frame ${row.image?'cutout-frame':''}" data-cutout-scale="${showcaseScale(row.scale)}"><img ${row.image?'data-cutout-fit':''} src="${h(safeUrl(image))}" alt="${h(row.image?'Background-free preview of '+name:'Original photo of '+name)}"></div><span>${row.image?'Showcase preview':'Original listing photo'}</span>`:'<span>Choose a car to see its preview</span>'}</div><div class="adm-showcase-controls">
    <label>Car from inventory<select data-showcase-car="${h(row.key)}" ${disabled?'disabled':''}><option value="">Choose an available car</option>${selectedMissing?`<option value="${h(row.listingId)}" selected>${h(name)} — no longer public</option>`:''}${cars.map(option=>`<option value="${h(option.id)}" ${option.id===row.listingId?'selected':''} ${usedBrands.has(brandKey(option))?'disabled':''}>${h(option.brand+' — '+option.model+' ('+option.year+')')}${usedBrands.has(brandKey(option))?' · brand already selected':''}</option>`).join('')}</select></label>
-   ${write&&car?`<div class="adm-showcase-image-actions">${media?`<button type="button" class="adm-secondary" data-showcase-prepare="${h(row.key)}" ${busy?'disabled':''}>${row.error?'Retry background removal':row.image?'Redo background removal':'Prepare background-free image'}</button><label class="adm-secondary adm-file-button ${busy?'is-disabled':''}">Choose photo<input type="file" data-showcase-source="${h(row.key)}" accept="image/jpeg,image/png,image/webp" ${busy?'disabled':''}></label><label class="adm-secondary adm-file-button ${busy?'is-disabled':''}">Upload cutout<input type="file" data-showcase-cutout="${h(row.key)}" accept="image/png,image/webp" ${busy?'disabled':''}></label>`:'<p class="adm-muted">Image preparation needs image-upload permission. You can choose an existing stock cutout or ask a team member with access to prepare one.</p>'}</div>`:''}
+   ${row.image?`<div class="adm-showcase-size"><div class="adm-showcase-size-head"><label for="${h(row.key)}-size">Car size</label><output for="${h(row.key)}-size" data-showcase-scale-output="${h(row.key)}">${Math.round(showcaseScale(row.scale)*100)}%</output>${write?`<button type="button" class="adm-text" data-showcase-scale-reset="${h(row.key)}" ${disabled||showcaseScale(row.scale)===1?'disabled':''}>Reset</button>`:''}</div><input type="range" id="${h(row.key)}-size" data-showcase-scale="${h(row.key)}" min="65" max="115" step="1" value="${Math.round(showcaseScale(row.scale)*100)}" aria-valuetext="${Math.round(showcaseScale(row.scale)*100)} percent" ${disabled?'disabled':''}><p>Adjust the car’s presence. The whole car stays in frame.</p></div>`:''}
+   ${write&&car?`<div class="adm-showcase-image-actions">${preparedImage&&preparedImage!==row.image?`<button type="button" class="adm-secondary" data-showcase-prepared="${h(row.key)}" ${busy?'disabled':''}>Use prepared cutout</button>`:''}${media?`<button type="button" class="adm-secondary" data-showcase-prepare="${h(row.key)}" ${busy?'disabled':''}>${row.error?'Retry background removal':row.image?'Redo background removal':'Prepare background-free image'}</button><label class="adm-secondary adm-file-button ${busy?'is-disabled':''}">Choose photo<input type="file" data-showcase-source="${h(row.key)}" accept="image/jpeg,image/png,image/webp" ${busy?'disabled':''}></label><label class="adm-secondary adm-file-button ${busy?'is-disabled':''}">Upload cutout<input type="file" data-showcase-cutout="${h(row.key)}" accept="image/png,image/webp" ${busy?'disabled':''}></label>`:'<p class="adm-muted">Image preparation needs image-upload permission. You can choose an existing stock cutout or ask a team member with access to prepare one.</p>'}</div>`:''}
    <p class="adm-showcase-status ${row.error?'is-error':''}" role="${row.error?'alert':'status'}" aria-live="polite" data-showcase-status="${h(row.key)}">${h(row.error||row.progress||(selectedMissing?'Replace or remove this unavailable car.':row.image?'Review the wheels, mirrors and edges before saving.':car?'Selecting a new car starts image preparation automatically.':'Only available and reserved inventory can appear here.'))}</p>
    ${activeJob?.key===row.key?`<button type="button" class="adm-text" data-showcase-cancel="${h(row.key)}">Cancel processing</button>`:''}
   </div></div></article>`;
@@ -63,7 +65,7 @@ function editorBody(){
 export function renderShowcaseEditor(content){
  clearShowcaseAdmin();
  const configured=Array.isArray(content.settings.showcase)?content.settings.showcase:defaultShowcase(content);
- draft={generation,actor:ownerId(),rows:configured.map((entry,index)=>({key:`showcase-${generation}-${index}`,listingId:entry.listingId,image:entry.image||'',sourceBlob:null,error:'',progress:''})),nextKey:configured.length};
+ draft={generation,actor:ownerId(),rows:configured.map((entry,index)=>({key:`showcase-${generation}-${index}`,listingId:entry.listingId,image:entry.image||'',scale:showcaseScale(entry.scale),sourceBlob:null,error:'',progress:''})),nextKey:configured.length};
  return `<details class="adm-settings-group adm-showcase-group" open><summary><span>01</span> Homepage showcase <b>＋</b></summary><div><p class="adm-showcase-intro">Choose the cars in the large homepage brand selector. Add one car per brand and arrange their order below. The separate featured inventory grid still uses each listing’s “Feature on the homepage” setting.</p><p class="adm-showcase-explainer">Background removal runs on this device. Cars are automatically centred and fitted to the frame. Review each cutout before saving. For the best result, use a clear photo with the whole car visible, or upload a transparent PNG or WebP.</p><div id="showcase-editor" data-showcase-session="${generation}">${editorBody()}</div><p class="adm-muted">Removing every car hides the showcase. Your inventory listings and their original photographs stay unchanged.</p></div></details>`;
 }
 function refresh(form,focusSelector){
@@ -87,7 +89,7 @@ export function syncShowcaseSaveState(form=currentForm()){
 export function readShowcaseSettings(form){
  if(form!==currentForm()||draft.actor!==ownerId()||!can('content.write'))throw Error('Open Website again before saving the showcase.');
  const issue=validationMessage();if(issue)throw Error(issue);
- return draft.rows.map(({listingId,image})=>({listingId,image}));
+ return draft.rows.map(({listingId,image,scale})=>({listingId,image,...(showcaseScale(scale)===1?{}:{scale:showcaseScale(scale)})}));
 }
 function validJob(job){
  return activeJob===job&&job.generation===generation&&draft?.actor===ownerId()&&job.form.isConnected&&job.form===currentForm()&&can('content.write')&&can('media.write')&&draft.rows.some(row=>row.key===job.key&&row.listingId===job.listingId)&&!job.controller.signal.aborted;
@@ -136,14 +138,28 @@ async function prepare(row,form,{file=null,transparent=false}={}){
  }
 }
 function rowFor(key){return draft?.rows.find(row=>row.key===key)}
+function resizeRow(row,value,form){
+ const scale=Number(value)/100;if(!row||activeJob||!row.image||!Number.isFinite(scale)||scale<.65||scale>1.15)return;
+ row.scale=showcaseScale(scale);
+ const article=form.querySelector(`[data-showcase-row="${row.key}"]`),percent=Math.round(row.scale*100);
+ const frame=article?.querySelector('.adm-showcase-image-frame');if(frame)frame.dataset.cutoutScale=String(row.scale);
+ const slider=article?.querySelector('[data-showcase-scale]');if(slider){slider.value=String(percent);slider.setAttribute('aria-valuetext',`${percent} percent`)}
+ const output=article?.querySelector('[data-showcase-scale-output]');if(output)output.textContent=`${percent}%`;
+ const reset=article?.querySelector('[data-showcase-scale-reset]');if(reset)reset.disabled=row.scale===1;
+ dirty(form);
+}
 export function bindShowcaseAdmin({markDirty:mark}={}){
  if(mark)markDirty=mark;if(bound)return;bound=true;bindCutoutFrames();
+ document.addEventListener('input',event=>{
+  const target=event.target,form=target.closest('#settings-form');if(!target.dataset.showcaseScale||!editable(form))return;
+  resizeRow(rowFor(target.dataset.showcaseScale),target.value,form);
+ });
  document.addEventListener('change',async event=>{
   const target=event.target,form=target.closest('#settings-form');if(!editable(form))return;
   if(target.dataset.showcaseCar){
    const row=rowFor(target.dataset.showcaseCar),car=liveCars(state.adminData).find(car=>car.id===target.value);if(!row||activeJob)return;
    if(car&&draft.rows.some(other=>other!==row&&brandKey(liveCars(state.adminData).find(car=>car.id===other.listingId))===brandKey(car))){target.value=row.listingId;return}
-   row.listingId=car?.id||'';row.image=car?stockCutout(car)||'':'';row.sourceBlob=null;row.error='';row.progress='';dirty(form);refresh(form,`[data-showcase-car="${row.key}"]`);
+   row.listingId=car?.id||'';row.image=car?stockCutout(car)||'':'';row.scale=1;row.sourceBlob=null;row.error='';row.progress='';dirty(form);refresh(form,`[data-showcase-car="${row.key}"]`);
    if(car&&!row.image){if(can('media.write'))await prepare(row,form);else{row.error='Ask a team member with image-upload permission to prepare this photo.';refresh(form)}}
   }
   const key=target.dataset.showcaseSource||target.dataset.showcaseCutout;
@@ -154,9 +170,15 @@ export function bindShowcaseAdmin({markDirty:mark}={}){
   const form=button.closest('#settings-form');if(!editable(form))return;
   if(button.dataset.showcaseCancel){const job=activeJob;if(job?.key===button.dataset.showcaseCancel){job.controller.abort();activeJob=null;const row=rowFor(job.key);if(row){row.progress='';row.error=(row.image?'Your existing cutout is unchanged. ':'')+'Image processing cancelled. Retry or upload a transparent cutout.'}refresh(form)}return}
   if(activeJob)return;
+  const preparedKey=button.dataset.showcasePrepared;if(preparedKey){
+   const row=rowFor(preparedKey),car=liveCars(state.adminData).find(car=>car.id===row?.listingId),image=stockCutout(car);
+   if(row&&image&&image!==row.image){row.image=image;row.sourceBlob=null;row.error='';row.progress='Prepared cutout selected. Review it, then save website changes to publish it.';dirty(form);refresh(form,`[data-showcase-car="${row.key}"]`)}
+   return;
+  }
+  const reset=button.dataset.showcaseScaleReset;if(reset){resizeRow(rowFor(reset),100,form);return}
   if(button.hasAttribute('data-showcase-add')){
    if(draft.rows.length>=LIMIT)return;
-   draft.rows.push({key:`showcase-${generation}-${draft.nextKey++}`,listingId:'',image:'',sourceBlob:null,error:'',progress:''});dirty(form);refresh(form,`[data-showcase-car="${draft.rows.at(-1).key}"]`);
+   draft.rows.push({key:`showcase-${generation}-${draft.nextKey++}`,listingId:'',image:'',scale:1,sourceBlob:null,error:'',progress:''});dirty(form);refresh(form,`[data-showcase-car="${draft.rows.at(-1).key}"]`);
   }
   const remove=button.dataset.showcaseRemove;if(remove){draft.rows=draft.rows.filter(row=>row.key!==remove);dirty(form);refresh(form,'[data-showcase-add]')}
   const up=button.dataset.showcaseUp,down=button.dataset.showcaseDown;

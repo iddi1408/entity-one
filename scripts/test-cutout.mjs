@@ -81,20 +81,47 @@ for (const failure of ['timeout', 'load', 'model']) {
   await assert.rejects(h.applyMask(frame, new Float32Array(320 * 320), controller.signal), {name: 'AbortError'}); checks++;
 }
 // Fit equal visible cars identically despite very different PNG canvases.
+// Scaling keeps the tyres on the same stage baseline, including narrow screens.
 const subject = {left:0, top:0, width:600, height:240};
 const paddedSubject = {...subject, left:900, top:400};
+const close = (actual, expected, message) => check(Math.abs(actual - expected) < .00001, message);
 for (const frame of [{width:980,height:395},{width:306,height:235},{width:230,height:130}]) {
-  const snug = fitCutoutToFrame({width:600,height:240}, subject, frame);
-  const padded = fitCutoutToFrame({width:2400,height:1200}, paddedSubject, frame);
-  const snugScale = snug.width / 600, paddedScale = padded.width / 2400;
-  check(Math.abs(snugScale - paddedScale) < .00001, 'Transparent source margins do not change visible car size');
-  check(Math.abs(snug.left - (padded.left + paddedSubject.left * paddedScale)) < .00001, 'Visible car is centred regardless of original canvas offset');
-  for (const shape of [{width:950,height:300},{width:400,height:700},{width:1800,height:110}]) {
-    const data = {left:130,top:45,...shape}, source = {width:2100,height:900};
-    const fit = fitCutoutToFrame(source, data, frame), scale = fit.width / source.width;
-    check(Math.abs(fit.height / source.height - scale) < .00001, 'Tall and wide cutouts keep their original proportions');
-    check(fit.left + data.left * scale > 0 && fit.left + (data.left + data.width) * scale < frame.width, 'Full subject fits horizontally with breathing room');
-    check(fit.top + data.top * scale > 0 && fit.top + (data.top + data.height) * scale < frame.height, 'Full subject fits vertically without clipping');
+  const baseline = frame.height * .93;
+  const normal = fitCutoutToFrame({width:600,height:240}, subject, frame);
+  for (const requestedScale of [.65,1,1.15]) {
+    const snug = fitCutoutToFrame({width:600,height:240}, subject, frame, requestedScale);
+    const padded = fitCutoutToFrame({width:2400,height:1200}, paddedSubject, frame, requestedScale);
+    const snugScale = snug.width / 600, paddedScale = padded.width / 2400;
+    close(snugScale, paddedScale, 'Transparent source margins do not change visible car size');
+    close(snug.left, padded.left + paddedSubject.left * paddedScale, 'Visible car is centred regardless of original canvas offset');
+    close(snug.top, padded.top + paddedSubject.top * paddedScale, 'Transparent top padding does not move the visible car');
+    close(snug.width / normal.width, requestedScale, 'Size adjustment scales the visible car predictably');
+    close(snug.top + subject.height * snugScale, baseline, 'Changing size leaves the car on the stage baseline');
+    for (const shape of [{width:950,height:300},{width:400,height:700},{width:1800,height:110}]) {
+      const data = {left:130,top:45,...shape}, source = {width:2100,height:900};
+      const fit = fitCutoutToFrame(source, data, frame, requestedScale), scale = fit.width / source.width;
+      close(fit.height / source.height, scale, 'Tall and wide cutouts keep their original proportions');
+      close(fit.left + (data.left + data.width / 2) * scale, frame.width / 2, 'Each silhouette stays horizontally centred');
+      close(fit.top + (data.top + data.height) * scale, baseline, 'Tall and wide cars share the same stage baseline');
+      check(fit.left + data.left * scale > 0 && fit.left + (data.left + data.width) * scale < frame.width, 'Full subject fits horizontally with breathing room at every allowed size');
+      check(fit.top + data.top * scale > 0 && fit.top + (data.top + data.height) * scale < frame.height, 'Full subject fits vertically without clipping at every allowed size');
+    }
+  }
+}
+{
+  const source = {width:600,height:240}, frame = {width:980,height:395};
+  const normal = fitCutoutToFrame(source, subject, frame);
+  const widthLimitedFrame = {width:600,height:1000};
+  const defaultFit = fitCutoutToFrame(source, subject, widthLimitedFrame);
+  close(defaultFit.width + cutoutPadding(subject) * 2 * defaultFit.width / source.width, widthLimitedFrame.width * .82, 'Default presentation reserves breathing room instead of filling the entire stage');
+  for (const malformed of [undefined,null,NaN,Infinity,-Infinity,'1.15',{},[]]) {
+    assert.deepEqual(fitCutoutToFrame(source, subject, frame, malformed), normal, 'Non-numeric or non-finite size values use the default presentation'); checks++;
+  }
+  for (const tooSmall of [-100,0,.1,.64]) {
+    assert.deepEqual(fitCutoutToFrame(source, subject, frame, tooSmall), fitCutoutToFrame(source, subject, frame, .65), 'Finite undersized values stop at the smallest permitted size'); checks++;
+  }
+  for (const tooLarge of [1.16,2,Number.MAX_VALUE]) {
+    assert.deepEqual(fitCutoutToFrame(source, subject, frame, tooLarge), fitCutoutToFrame(source, subject, frame, 1.15), 'Finite oversized values cannot enlarge the car beyond the permitted frame'); checks++;
   }
 }
 check(fitCutoutToFrame({width:600,height:240}, subject, {width:0,height:200}) === null, 'Hidden zero-size frames defer sizing until layout');
@@ -120,4 +147,4 @@ check(fitCutoutToFrame({width:600,height:240}, subject, {width:0,height:200}) ==
   check(h.canvases[0].written.pixels === pixels, 'Framing preserves the original subject pixels');
   check(h.canvases[0].width === 1 && h.canvases[0].height === 1, 'Export canvas releases memory after saving');
 }
-console.log(`PASS: ${checks} cutout checks covering input validation, cancellation, lifecycle, transparency, RGB preservation, padding-independent sizing, responsive contain geometry and alpha specks.`);
+console.log(`PASS: ${checks} cutout checks covering input validation, cancellation, lifecycle, transparency, RGB preservation, padding-independent sizing, scale limits, stable stage baseline, responsive contain geometry and alpha specks.`);
