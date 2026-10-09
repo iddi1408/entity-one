@@ -21,13 +21,15 @@ for(const image of ['','javascript:alert(1)','http://example.test/car.png','/ass
 assert.equal(showcaseEntries({listings:[ferrari,second],settings:{showcase:[{listingId:'missing',image:'/assets/test.png'},{listingId:second.id,image:'/assets/one.png'},{listingId:ferrari.id,image:'/assets/two.png'}]}}).length,1,'Missing cars and duplicate brands omitted');
 const script=(await readFile('public/showcase.js','utf8')).replace(/^import .*?;\r?\n/gm,'').replace(/export /g,'');
 const state={data:structuredClone(configured)},listeners={};
-const context={state,showcaseEntries,URL,document:{addEventListener:(type,fn)=>listeners[type]=fn,querySelector:()=>({set innerHTML(value){context.lastRender=value;}})},h:value=>String(value).replace(/[<>&\"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c])),safeUrl:value=>value,brandLogo:brand=>`<i>${brand}</i>`,socialLinks:()=>'',regionCards:()=>'',vehicleCard:car=>`<article data-test-card="${car.id}"></article>`,photoAttributes:()=>'',render:()=>{}};
+const context={state,showcaseEntries,bindCutoutFrames:()=>{},URL,document:{addEventListener:(type,fn)=>listeners[type]=fn,querySelector:()=>({set innerHTML(value){context.lastRender=value;}})},h:value=>String(value).replace(/[<>&\"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c])),safeUrl:value=>value,brandLogo:brand=>`<i>${brand}</i>`,socialLinks:()=>'',regionCards:()=>'',vehicleCard:car=>`<article data-test-card="${car.id}"></article>`,photoAttributes:()=>'',render:()=>{}};
 vm.createContext(context);vm.runInContext(script,context);
 let html=vm.runInContext('showcase()',context);
 assert.match(html,/src="\/assets\/sf90-cutout.png"/);
 assert.ok(!html.includes('/assets/sf90.jpg'),'Original background is never used as showcase fallback');
 assert.match(html,/01 \/ 02/);
 assert.match(html,/SF90/);
+assert.match(html,/stage-car-frame cutout-frame/);
+assert.match(html,/data-cutout-fit/);
 assert.equal((html.match(/data-marque=/g)||[]).length,2);
 vm.runInContext('bindShowcase()',context);
 listeners.click({target:{closest:()=>({dataset:{marque:'Porsche'}})}});

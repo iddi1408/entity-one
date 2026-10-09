@@ -23,7 +23,7 @@ function fixture(){return {settings:{heroHeading:'Rare cars.\nPrivate access.',e
   {id:'wanted-active',type:'wanted',brand:'Lamborghini',model:'SVJ',year:'2020',mileage:'Low mileage',price:'Budget on request',region:'Europe',location:'Munich',status:'active',image:'/assets/svj.png',gallery:[]},
   {id:'wanted-fulfilled',type:'wanted',brand:'Pagani',model:'Huayra',year:'2016',mileage:'Any',price:'Budget on request',region:'America',location:'Texas',status:'fulfilled',image:'/assets/pagani.png',gallery:[]}
 ]};}
-function harness(permissions=allPermissions){
+function harness(permissions=allPermissions,media=[]){
   const state={adminTab:'dashboard',revision:12,session:{authenticated:true,localOnly:false,user:{username:'reviewer',role:'owner',permissions:[...permissions]}},adminData:fixture()};
   const listeners=new Map(),windowListeners=new Map(),nodes=new Map(),dialogs=[],requests=[],saves=[],notifications=[];
   let renders=0,modalHtml='',scrolls=0,submissions=0;
@@ -62,7 +62,7 @@ function harness(permissions=allPermissions){
     needsPasswordChange(){return !!state.session.mustChangePassword;},roleLabel:role=>role||'Viewer',
     render(){renders++;},notify(message){notifications.push(message);},navigate(path){context.location.pathname=path;},
     modal(html){modalHtml=html;nodes.set('#confirm-action',node());nodes.set('#dialog-content',node());},closeModal(){},
-    async api(url,options={}){requests.push({url,options});return url==='/backups'?{backups:[]}:url==='/media'?{media:[]}:{recentAudit:[]};},
+    async api(url,options={}){requests.push({url,options});return url==='/backups'?{backups:[]}:url==='/media'?{media}:{recentAudit:[]};},
     async loadContent(){},async saveContent(content){saves.push(structuredClone(content));state.adminData=content;},
     clearAccessData(){},clearAnalyticsData(){},async ensureAccessData(){},async ensureAnalyticsData(){},
     renderShowcaseEditor:()=>'<section id="showcase-editor">Homepage showcase</section>',
@@ -174,4 +174,15 @@ function harness(permissions=allPermissions){
   equal(await h.key('s',{ctrlKey:true}),false);equal(h.submissions,3,'No enabled submit control means no shortcut submission');
 }
 
-console.log(`PASS: ${checks} admin UI checks covering permission-gated/mobile navigation, filter and sort behavior, unsaved changes, publication help, confirmed status/deletion actions and form-only save shortcuts.`);
+// Only uploaded files can be deleted; in-use state, read-only access and confirmation are explicit.
+{
+  const uploaded={id:'00000000-0000-4000-8000-000000000001',url:'/assets/uploads/00000000-0000-4000-8000-000000000001.png',name:'spare-photo.png',size:1024,inUse:false};
+  const used={...uploaded,id:'00000000-0000-4000-8000-000000000002',url:'/assets/uploads/00000000-0000-4000-8000-000000000002.png',name:'showcase.png',inUse:true};
+  const h=harness(allPermissions,[uploaded,used]);await h.ensureAdminData();h.state.adminTab='media';const html=h.admin();
+  contains(html,'data-delete-media="'+uploaded.url+'"');contains(html,'aria-label="Delete showcase.png" disabled');omits(html,'data-delete-media="/assets/porsche.png"');contains(html,'must first be removed');
+  await h.click({'data-delete-media':uploaded.url});contains(h.modalHtml,'cannot restore deleted image files');contains(h.modalHtml,'Delete image');equal(h.requests.filter(r=>r.options.method==='DELETE').length,0,'Opening confirmation does not delete');
+  await h.confirm();equal(h.requests.filter(r=>r.options.method==='DELETE').length,1);equal(h.requests.find(r=>r.options.method==='DELETE').url,'/media/00000000-0000-4000-8000-000000000001.png');contains(h.notifications.at(-1),'Image deleted');
+  await h.click({'data-delete-media':used.url});equal(h.requests.filter(r=>r.options.method==='DELETE').length,1,'In-use guard does not send delete');
+  const reader=harness(['media.read'],[uploaded]);await reader.ensureAdminData();reader.state.adminTab='media';omits(reader.admin(),'data-delete-media');await reader.click({'data-delete-media':uploaded.url});equal(reader.requests.filter(r=>r.options.method==='DELETE').length,0,'Read-only account cannot initiate delete');
+}
+console.log(`PASS: ${checks} admin UI checks covering permission-gated/mobile navigation, filters, unsaved changes, confirmed media/listing deletion and form-only save shortcuts.`);

@@ -1,15 +1,16 @@
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import vm from 'node:vm';
+import {visibleBounds, cutoutPadding, subjectBounds, fitCutoutToFrame} from '../public/cutout-frame.js';
 
 // Exercise cancellation/resource cleanup and alpha composition without downloading
 // a model or making a network call. Real model/image quality is checked in browser QA.
-const source = (await readFile('public/cutout.js', 'utf8')).replace(/^export /gm, '') +
-  '\nglobalThis.cutout = {prepareCutout, validateTransparentImage, infer, applyMask, hasTransparency};';
+const source = (await readFile('public/cutout.js', 'utf8')).replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '') +
+  '\nglobalThis.cutout = {prepareCutout, validateTransparentImage, infer, applyMask, hasTransparency, finishImage};';
 let checks = 0;
 const check = (condition, message) => { assert.ok(condition, message); checks++; };
 function harness() {
-  const workers = [], timers = new Map(); let sequence = 0;
+  const workers = [], canvases = [], timers = new Map(); let sequence = 0;
   class Worker {
     constructor(url, options) { this.url = url; this.options = options; this.terminated = false; workers.push(this); }
     postMessage(value) { this.input = value; }
@@ -17,12 +18,17 @@ function harness() {
     message(data) { this.onmessage?.({data}); }
   }
   const context = vm.createContext({Blob, DOMException, Float32Array, Uint8ClampedArray, Number, Math, Worker,
-    WebAssembly: {}, console,
+    WebAssembly: {}, console, visibleBounds, cutoutPadding,
+    document: {createElement() {
+      const canvas = {width:0, height:0, getContext:() => ({putImageData(pixels, x, y) { canvas.written = {pixels, x, y}; }}),
+        toBlob(callback, type) { canvas.exported = {width:canvas.width, height:canvas.height}; callback(new Blob(['cutout'], {type})); }};
+      canvases.push(canvas); return canvas;
+    }},
     setTimeout(callback, delay) { const id = ++sequence; if (delay) timers.set(id, callback); else queueMicrotask(callback); return id; },
     clearTimeout(id) { timers.delete(id); }
   });
   vm.runInContext(source, context, {filename: 'public/cutout.js'});
-  return {...context.cutout, workers, timers};
+  return {...context.cutout, workers, timers, canvases};
 }
 
 {
@@ -74,4 +80,44 @@ for (const failure of ['timeout', 'load', 'model']) {
   const controller = new AbortController(); controller.abort();
   await assert.rejects(h.applyMask(frame, new Float32Array(320 * 320), controller.signal), {name: 'AbortError'}); checks++;
 }
-console.log(`PASS: ${checks} cutout checks covering input validation, cancellation, worker lifecycle, timeout/load/model failures, transparency and RGB preservation.`);
+// Fit equal visible cars identically despite very different PNG canvases.
+const subject = {left:0, top:0, width:600, height:240};
+const paddedSubject = {...subject, left:900, top:400};
+for (const frame of [{width:980,height:395},{width:306,height:235},{width:230,height:130}]) {
+  const snug = fitCutoutToFrame({width:600,height:240}, subject, frame);
+  const padded = fitCutoutToFrame({width:2400,height:1200}, paddedSubject, frame);
+  const snugScale = snug.width / 600, paddedScale = padded.width / 2400;
+  check(Math.abs(snugScale - paddedScale) < .00001, 'Transparent source margins do not change visible car size');
+  check(Math.abs(snug.left - (padded.left + paddedSubject.left * paddedScale)) < .00001, 'Visible car is centred regardless of original canvas offset');
+  for (const shape of [{width:950,height:300},{width:400,height:700},{width:1800,height:110}]) {
+    const data = {left:130,top:45,...shape}, source = {width:2100,height:900};
+    const fit = fitCutoutToFrame(source, data, frame), scale = fit.width / source.width;
+    check(Math.abs(fit.height / source.height - scale) < .00001, 'Tall and wide cutouts keep their original proportions');
+    check(fit.left + data.left * scale > 0 && fit.left + (data.left + data.width) * scale < frame.width, 'Full subject fits horizontally with breathing room');
+    check(fit.top + data.top * scale > 0 && fit.top + (data.top + data.height) * scale < frame.height, 'Full subject fits vertically without clipping');
+  }
+}
+check(fitCutoutToFrame({width:600,height:240}, subject, {width:0,height:200}) === null, 'Hidden zero-size frames defer sizing until layout');
+{
+  const width=220,height=130,pixels=new Uint8ClampedArray(width*height*4);
+  const paint=(left,top,w,h,alpha=255)=>{for(let y=top;y<top+h;y++)for(let x=left;x<left+w;x++)pixels[(y*width+x)*4+3]=alpha;};
+  paint(40,35,120,55); // body
+  paint(165,40,2,3); // detached mirror close to the main body
+  paint(60,94,10,5); // wheel separated by a gap in the mask
+  paint(2,3,1,1);paint(219,129,1,1); // isolated segmentation specks
+  paint(0,0,220,1,16); // faint mask haze
+  const measured=subjectBounds(pixels,width,height);
+  assert.deepEqual({left:measured.left,top:measured.top,width:measured.width,height:measured.height},{left:40,top:35,width:127,height:64});checks++;
+  check(subjectBounds(new Uint8ClampedArray(16),2,2) === null, 'Empty transparent images safely fall back');
+  paint(180,105,10,8); // substantial disconnected part is retained
+  check(subjectBounds(pixels,width,height).width === 150, 'Substantial disconnected subject parts are not discarded');
+}
+{
+  const h=harness(),pixels={data:new Uint8ClampedArray([32,64,96,255,0,0,0,0,0,0,0,0,0,0,0,0])};
+  const finished=await h.finishImage({width:2,height:2,sourceWidth:2,sourceHeight:2,pixels});
+  check(finished.width === 5 && finished.height === 5, 'Edge-touching source gets equal new transparent padding');
+  check(h.canvases[0].written.x === 2 && h.canvases[0].written.y === 2, 'Visible subject is centred even at the source edge');
+  check(h.canvases[0].written.pixels === pixels, 'Framing preserves the original subject pixels');
+  check(h.canvases[0].width === 1 && h.canvases[0].height === 1, 'Export canvas releases memory after saving');
+}
+console.log(`PASS: ${checks} cutout checks covering input validation, cancellation, lifecycle, transparency, RGB preservation, padding-independent sizing, responsive contain geometry and alpha specks.`);

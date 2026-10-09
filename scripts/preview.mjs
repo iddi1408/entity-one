@@ -6,6 +6,7 @@ import path from 'node:path';
 import {localDB} from './d1-local.mjs';
 import {compileWorker} from './compile-worker.mjs';
 import {createMediaStore, MAX_IMAGE_BYTES, ordinaryDirectory, PreviewError, safeFile} from './media-store.mjs';
+import {mediaInUse, mediaReferencePaths} from '../worker/media.js';
 
 const SECURITY = {
   'Content-Security-Policy': "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; script-src-attr 'none'; style-src 'self'; font-src 'self'; img-src 'self' https: data: blob:; media-src 'self' https: blob:; connect-src 'self' https://api.web3forms.com; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
@@ -90,7 +91,8 @@ export async function createPreviewServer({publicDirectory = path.resolve('publi
   const ownsDatabase = !database;
   const DB = database || localDB(path.join(runtime, 'preview.sqlite'));
   const media = await createMediaStore(runtime);
-  const code = await compileWorker({applicationPath, content: JSON.parse(await readFile(await safeFile(root, 'content.json'), 'utf8'))});
+  const defaultContent = JSON.parse(await readFile(await safeFile(root, 'content.json'), 'utf8'));
+  const code = await compileWorker({applicationPath, content: defaultContent});
   const worker = (await import('data:text/javascript;base64,' + Buffer.from(code).toString('base64'))).default;
   const environment = {DB, WEB3FORMS_ACCESS_KEY: process.env.WEB3FORMS_ACCESS_KEY};
 
@@ -135,18 +137,39 @@ export async function createPreviewServer({publicDirectory = path.resolve('publi
         if (!result.ok) throw new PreviewError(503, 'The public content is unavailable.');
         return (await result.json()).content;
       };
+      const fullContent = async () => {
+        const stored = await DB.prepare('SELECT body FROM site_content WHERE id = ?').bind('main').first();
+        return stored ? JSON.parse(stored.body) : defaultContent;
+      };
 
       if (['GET', 'HEAD'].includes(request.method) && (request.headers['transfer-encoding'] || Number(request.headers['content-length'] || 0) > 0)) throw new PreviewError(400, 'This request must not contain a body.');
       if (pathname === '/api/setup' || pathname === '/api/commit') throw new PreviewError(404, 'This service does not exist.');
-      if (pathname === '/api/media') {
-        if (!['GET', 'POST'].includes(request.method)) throw new PreviewError(405, 'Method not allowed.');
+      if (pathname === '/api/media' || pathname.startsWith('/api/media/')) {
+        const deleting = pathname.startsWith('/api/media/');
+        if (!(deleting ? ['DELETE'] : ['GET', 'POST']).includes(request.method)) throw new PreviewError(405, 'Method not allowed.');
         const current = await session();
         if (!current.authenticated) throw new PreviewError(401, 'Log in to manage media.');
-        const permission = request.method === 'POST' ? 'media.write' : 'media.read';
+        const permission = ['POST', 'DELETE'].includes(request.method) ? 'media.write' : 'media.read';
         if (current.mustChangePassword || !current.user?.permissions?.includes(permission)) throw new PreviewError(403, 'You do not have permission to manage media.');
-        if (request.method === 'GET') return json({media: await media.list()});
+        if (request.method === 'GET') {
+          const references = mediaReferencePaths(await fullContent(), origin);
+          return json({media: (await media.list()).map(item => ({...item, inUse: references.has(item.url)}))});
+        }
         exactOrigin(request, origin);
         if (!equalToken(request.headers['x-csrf-token'], current.csrfToken)) throw new PreviewError(403, 'Your security token is missing or expired. Refresh the page.');
+        if (deleting) {
+          if (address.search) throw new PreviewError(404, 'Image not found.');
+          const filename = pathname.slice('/api/media/'.length), record = await media.read(filename, true);
+          const latest = await session();
+          if (!latest.authenticated || latest.mustChangePassword || !latest.user?.permissions?.includes('media.write') || !equalToken(current.csrfToken, latest.csrfToken)) throw new PreviewError(401, 'Your session has expired. Log in again.');
+          if (mediaInUse(await fullContent(), record.item.url, origin)) throw new PreviewError(409, 'This image is in use. Remove it from listings, drafts, the homepage showcase or website settings and save those changes before deleting it.');
+          const log = action => DB.prepare('INSERT INTO audit_log (at, action, session_id, detail, actor_id, actor_username, actor_role) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(Math.floor(Date.now() / 1000), action, latest.session.id, JSON.stringify({id: record.item.id, filename: record.item.name, size: record.item.size}), latest.user.id, latest.user.username, latest.user.role).run();
+          await log('media.delete_requested');
+          if (mediaInUse(await fullContent(), record.item.url, origin)) throw new PreviewError(409, 'This image was added to the website while you were deleting it. Remove its references and save before trying again.');
+          try { await media.remove(filename); } catch { throw new PreviewError(503, 'The image could not be deleted. Refresh the image library before trying again.'); }
+          try { await log('media.delete'); } catch { throw new PreviewError(503, 'The deletion result could not be confirmed. Refresh the image library before trying again.'); }
+          return json({deleted: true, id: record.item.id});
+        }
         if (!/^multipart\/form-data\s*;/i.test(request.headers['content-type'] || '')) throw new PreviewError(415, 'A multipart image upload is required.');
         const bytes = await bodyBytes(request, UPLOAD_REQUEST_LIMIT);
         let form;

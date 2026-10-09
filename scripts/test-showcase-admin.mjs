@@ -43,7 +43,7 @@ function harness({content=fixture(),permissions=['content.write','media.write']}
  };
  class TestFormData{constructor(){this.fields=new Map();}set(name,value,filename){this.fields.set(name,{value,filename});}get(name){return this.fields.get(name)?.value;}}
  const context=vm.createContext({
-  state,h:escape,safeUrl:value=>value,defaultShowcase,stockCutout,document,location:{origin:'https://example.test'},
+  state,h:escape,safeUrl:value=>value,defaultShowcase,stockCutout,bindCutoutFrames:()=>{},document,location:{origin:'https://example.test'},
   can:permission=>state.session.authenticated&&state.session.user.permissions.includes(permission),
   MutationObserver:class{constructor(callback){observers.push(callback);}observe(){}},
   async fetch(url,options){fetches.push({url,...options});return {ok:true,headers:{get:()=>null},blob:async()=>new Blob(['source'],{type:'image/jpeg'})};},
@@ -88,7 +88,7 @@ async function until(predicate){for(let attempt=0;attempt<30&&!predicate();attem
 // Legacy defaults only reuse exact stock cutouts. Explicit empty configuration
 // hides the feature and is never replaced with automatic defaults.
 {
- const h=harness();const html=h.mount();contains(html,'Homepage showcase');contains(html,'separate featured inventory grid');
+ const h=harness();const html=h.mount();contains(html,'Homepage showcase');contains(html,'adm-showcase-image-frame cutout-frame');contains(html,'data-cutout-fit');contains(html,'separate featured inventory grid');
  equal(h.read(),defaultShowcase(h.content));equal(h.read().length,2);equal(h.saveButtons.every(button=>!button.disabled),true);
  contains(html,'value="reserved"');omits(html,'value="draft"');omits(html,'value="sold"');omits(html,'value="wanted"');
  equal(h.requests.length,0);equal(h.engineCalls,0);

@@ -1,3 +1,4 @@
+import {visibleBounds, cutoutPadding} from './cutout-frame.js';
 // Admin-only image preparation. Originals are never changed or uploaded by this module.
 // API: prepareCutout(blob, {onProgress(message), signal}) and validateTransparentImage(blob, {signal})
 // Both return {blob: PNG Blob, width, height, sourceWidth, sourceHeight}.
@@ -120,22 +121,17 @@ async function applyMask(frame, mask, signal) {
 async function finishImage(frame, signal) {
   checkAbort(signal);
   const pixels = frame.pixels.data, {width, height} = frame;
-  let left = width, right = -1, top = height, bottom = -1, visible = 0;
-  for (let y = 0; y < height; y++) {
-    if (y % 128 === 0) { checkAbort(signal); await nextFrame(); }
-    for (let x = 0; x < width; x++) if (pixels[(y * width + x) * 4 + 3] > 16) {
-      left = Math.min(left, x); right = Math.max(right, x); top = Math.min(top, y); bottom = Math.max(bottom, y); visible++;
-    }
-  }
-  if (visible < width * height * 0.003 || right < left || bottom < top) {
+  const bounds = visibleBounds(pixels, width, height);
+  await nextFrame(); checkAbort(signal);
+  if (!bounds || bounds.visible < width * height * 0.003) {
     throw new Error('No clear car was found. Try a clearer photo or upload a transparent PNG.');
   }
-  const pad = Math.max(12, Math.round(Math.max(right - left + 1, bottom - top + 1) * 0.035));
-  const cropLeft = Math.max(0, left - pad), cropTop = Math.max(0, top - pad);
-  const cropRight = Math.min(width - 1, right + pad), cropBottom = Math.min(height - 1, bottom + pad);
-  const resultWidth = cropRight - cropLeft + 1, resultHeight = cropBottom - cropTop + 1;
+  // Add equal transparent room even when the source touches an image edge.
+  // Clamping the crop to the original canvas made the same car sit off-centre.
+  const pad = cutoutPadding(bounds);
+  const resultWidth = bounds.width + pad * 2, resultHeight = bounds.height + pad * 2;
   const {canvas, context} = makeCanvas(resultWidth, resultHeight);
-  context.putImageData(frame.pixels, -cropLeft, -cropTop);
+  context.putImageData(frame.pixels, pad - bounds.left, pad - bounds.top);
   try {
     const blob = await new Promise((resolve, reject) => canvas.toBlob(value => value ? resolve(value) : reject(new Error('The cutout could not be saved. Try a smaller photo.')), 'image/png'));
     checkAbort(signal);

@@ -4,7 +4,7 @@ export const PERMISSIONS = Object.freeze([
   ['inventory.read', 'View inventory'], ['inventory.write', 'Edit inventory'],
   ['wanted.read', 'View wanted cars'], ['wanted.write', 'Edit wanted cars'],
   ['content.read', 'View site content'], ['content.write', 'Edit site content'],
-  ['media.read', 'View media'], ['media.write', 'Upload media'],
+  ['media.read', 'View media'], ['media.write', 'Upload & delete media'],
   ['backups.read', 'View backups'], ['backups.restore', 'Restore backups'],
   ['logs.read', 'View activity'], ['analytics.read', 'View website analytics'], ['access.manage', 'Manage staff access']
 ].map(([id, label]) => Object.freeze({id, label})));

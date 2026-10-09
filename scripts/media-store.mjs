@@ -64,7 +64,7 @@ export async function createMediaStore(runtimeDirectory) {
     if (value.id !== match[1] || value.url !== `/assets/uploads/${filename}` || typeof value.name !== 'string' || value.name.length > 160 || !Number.isSafeInteger(value.size) || value.size < 1 || value.size > MAX_IMAGE_BYTES || typeof value.uploadedAt !== 'string' || !Number.isFinite(Date.parse(value.uploadedAt))) throw new PreviewError(404, 'Image not found.');
     const imagePath = await safeFile(root, filename);
     if ((await lstat(imagePath)).size !== value.size) throw new PreviewError(404, 'Image not found.');
-    return {item: {id: value.id, url: value.url, name: safeName(value.name, match[2]), size: value.size, uploadedAt: value.uploadedAt}, imagePath, contentType: TYPES[match[2]]};
+    return {item: {id: value.id, url: value.url, name: safeName(value.name, match[2]), size: value.size, uploadedAt: value.uploadedAt}, imagePath, metadataPath, contentType: TYPES[match[2]]};
   }
 
   return {
@@ -94,6 +94,14 @@ export async function createMediaStore(runtimeDirectory) {
     async read(filename, head = false) {
       const record = await readRecord(filename);
       return {...record, bytes: head ? null : await readFile(record.imagePath)};
+    },
+    async remove(filename) {
+      const record = await readRecord(filename);
+      // Both paths have passed UUID, ordinary-file and resolved-root checks.
+      await unlink(record.imagePath);
+      // An orphan metadata file is ignored by list(); the image deletion is complete.
+      await unlink(record.metadataPath).catch(() => {});
+      return record.item;
     },
   };
 }

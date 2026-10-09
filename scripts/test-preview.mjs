@@ -99,7 +99,7 @@ try {
   assert.equal(item.size, png.length); assert.equal(item.name, 'photo.jpg');
   assert.deepEqual(Object.keys(item).sort(), ['id', 'name', 'size', 'uploadedAt', 'url']);
   assert.equal((await DB.prepare("SELECT COUNT(*) AS count FROM audit_log WHERE action = 'media.upload'").first()).count, 1);
-  assert.deepEqual((await request('/api/media', {headers: auth})).data.media, [item]);
+  assert.deepEqual((await request('/api/media', {headers: auth})).data.media, [{...item, inUse: false}]);
   assert.equal((await request(item.url)).response.status, 404);
   const privateImage = await request(item.url, {headers: auth});
   assert.equal(privateImage.response.status, 200); assert.equal(privateImage.response.headers.get('Content-Type'), 'image/png'); assert.deepEqual(privateImage.bytes, png);
@@ -136,6 +136,31 @@ try {
   assert.equal((await request(secondImage.data.media.url)).response.status, 404);
   const manifest = (await request('/api/media', {headers: auth})).data.media;
   assert.deepEqual(manifest.map(entry => entry.id), [secondImage.data.media.id, item.id], 'Newest images come first');
+  const removePath = '/api/media/' + secondImage.data.media.url.split('/').at(-1);
+  assert.equal((await request(removePath, {method: 'DELETE'})).response.status, 401);
+  assert.equal((await request(removePath, {method: 'DELETE', headers: {Cookie: cookie}})).response.status, 403);
+  assert.equal((await request(removePath, {method: 'DELETE', headers: {...auth, Origin: 'https://evil.example'}})).response.status, 403);
+  assert.equal((await request('/api/media/invalid.png', {method: 'DELETE', headers: auth})).response.status, 404);
+  const invited = await request('/api/users', {method: 'POST', headers: auth, value: {username: 'media-reader', role: 'viewer', permissions: ['media.read']}});
+  assert.equal(invited.response.status, 201);
+  const readerLogin = await request('/api/login', {method: 'POST', value: {username: 'media-reader', password: invited.data.temporaryPassword}});
+  const readerTemp = {Cookie: readerLogin.response.headers.get('Set-Cookie').split(';')[0], 'X-CSRF-Token': readerLogin.data.csrfToken};
+  assert.equal((await request(removePath, {method: 'DELETE', headers: readerTemp})).response.status, 403, 'Password-change gate protects delete');
+  const readerPassword = randomBytes(28).toString('base64url');
+  const readerChanged = await request('/api/account/password', {method: 'POST', headers: readerTemp, value: {currentPassword: invited.data.temporaryPassword, newPassword: readerPassword, confirmPassword: readerPassword}});
+  assert.equal(readerChanged.response.status, 200);
+  const readerAuth = {Cookie: readerChanged.response.headers.get('Set-Cookie').split(';')[0], 'X-CSRF-Token': readerChanged.data.csrfToken};
+  assert.equal((await request('/api/media', {headers: readerAuth})).response.status, 200);
+  assert.equal((await request(removePath, {method: 'DELETE', headers: readerAuth})).response.status, 403, 'Media read permission cannot delete uploads');
+  content.listings.find(listing => listing.id === draft.id).image = secondImage.data.media.url; await saveContent();
+  assert.equal((await request('/api/media', {headers: auth})).data.media.find(m => m.id === secondImage.data.media.id).inUse, true);
+  assert.equal((await request(removePath, {method: 'DELETE', headers: auth})).response.status, 409, 'Private draft reference prevents deletion');
+  content.listings.find(listing => listing.id === draft.id).image = item.url; await saveContent();
+  assert.equal((await request(removePath, {method: 'DELETE', headers: auth})).response.status, 200);
+  assert.equal((await request(removePath, {method: 'DELETE', headers: auth})).response.status, 404);
+  assert.equal((await request(secondImage.data.media.url, {headers: auth})).response.status, 404);
+  const deletionLog = await DB.prepare("SELECT actor_username, actor_role FROM audit_log WHERE action = 'media.delete'").first();
+  assert.equal(deletionLog.actor_username, credentials.username); assert.equal(deletionLog.actor_role, 'owner');
   // Pause a valid multipart request after authentication, then revoke its session.
   const delayedLogin = await request('/api/login', {method: 'POST', value: credentials});
   const delayedCookie = delayedLogin.response.headers.get('Set-Cookie').split(';')[0];
@@ -162,16 +187,17 @@ try {
   await DB.prepare('DELETE FROM sessions WHERE token_hash = ?').bind(createHash('sha256').update(delayedCookie.split('=')[1]).digest('hex')).run();
   delayedRequest.end(delayedBytes.subarray(32));
   assert.equal(await delayedResult, 401, 'An upload cannot finish using a session revoked during buffering');
+  const previousBuckets = (await DB.prepare('SELECT bucket FROM rate_limits').all()).results.map(row => row.bucket);
   for (const address of ['198.51.100.1', '198.51.100.2']) await request('/api/login', {method: 'POST', value: {...credentials, password: randomBytes(32).toString('hex')}, headers: {'CF-Connecting-IP': address, 'X-Forwarded-For': address}});
   const rateLimits = (await DB.prepare('SELECT bucket FROM rate_limits').all()).results.map(row => row.bucket);
   const localBucket = createHash('sha256').update('login:ip:127.0.0.1').digest('hex');
   const accountBucket = createHash('sha256').update('login:account:' + credentials.username.toLowerCase()).digest('hex');
-  assert.deepEqual(rateLimits.sort(), [localBucket, accountBucket].sort(), 'Client headers cannot choose the rate-limit identity');
+  assert.deepEqual(rateLimits.sort(), [...new Set([...previousBuckets, localBucket, accountBucket])].sort(), 'Client headers cannot choose the rate-limit identity');
   assert.equal((await request('/api/logout', {method: 'POST', headers: auth, value: {}})).response.status, 200);
   assert.equal((await upload(auth)).response.status, 401);
   assert.equal((await request('/api/media', {headers: auth})).response.status, 401);
   const files = await readdir(path.join(runtimeDirectory, 'uploads'));
-  assert.equal(files.length, 4, 'Only the two accepted images and their metadata were written');
+  assert.equal(files.length, 2, 'Only the remaining image and metadata remain after deletion');
   console.log(`Preview adapter passed ${checks} HTTP response checks plus isolated storage, CSRF, media visibility, Windows path, and trusted-IP assertions.`);
 } finally {
   if (server) { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }

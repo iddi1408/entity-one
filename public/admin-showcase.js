@@ -1,6 +1,7 @@
 import {state,h,safeUrl,api} from './app.js';
 import {can} from './access.js';
 import {defaultShowcase,stockCutout} from './showcase-config.js';
+import {bindCutoutFrames} from './cutout-frame.js';
 
 const LIMIT=12,MAX_IMAGE_BYTES=8*1024*1024;
 const liveCars=content=>(content?.listings||[]).filter(car=>car.type==='inventory'&&['available','reserved'].includes(car.status||'available'));
@@ -47,7 +48,7 @@ function rowHtml(row,index){
  const selectedMissing=row.listingId&&!car;
  return `<article class="adm-showcase-card" data-showcase-row="${h(row.key)}">
   <div class="adm-showcase-card-head"><span class="adm-showcase-order">${String(index+1).padStart(2,'0')}</span><div><strong>${h(name)}</strong><small>${row.image?'Cutout ready for review':car?'Prepare an image without its background':'One car per brand'}</small></div>${write?`<div class="adm-showcase-order-actions"><button type="button" class="adm-secondary" data-showcase-up="${h(row.key)}" aria-label="Move ${h(name)} up" ${disabled||index===0?'disabled':''}>↑</button><button type="button" class="adm-secondary" data-showcase-down="${h(row.key)}" aria-label="Move ${h(name)} down" ${disabled||index===draft.rows.length-1?'disabled':''}>↓</button><button type="button" class="adm-text" data-showcase-remove="${h(row.key)}" ${disabled?'disabled':''}>Remove</button></div>`:''}</div>
-  <div class="adm-showcase-card-body"><div class="adm-showcase-preview ${row.image?'':'is-source'}">${image?`<img src="${h(safeUrl(image))}" alt="${h(row.image?'Background-free preview of '+name:'Original photo of '+name)}"><span>${row.image?'Showcase preview':'Original listing photo'}</span>`:'<span>Choose a car to see its preview</span>'}</div><div class="adm-showcase-controls">
+  <div class="adm-showcase-card-body"><div class="adm-showcase-preview ${row.image?'':'is-source'}">${image?`<div class="adm-showcase-image-frame ${row.image?'cutout-frame':''}"><img ${row.image?'data-cutout-fit':''} src="${h(safeUrl(image))}" alt="${h(row.image?'Background-free preview of '+name:'Original photo of '+name)}"></div><span>${row.image?'Showcase preview':'Original listing photo'}</span>`:'<span>Choose a car to see its preview</span>'}</div><div class="adm-showcase-controls">
    <label>Car from inventory<select data-showcase-car="${h(row.key)}" ${disabled?'disabled':''}><option value="">Choose an available car</option>${selectedMissing?`<option value="${h(row.listingId)}" selected>${h(name)} — no longer public</option>`:''}${cars.map(option=>`<option value="${h(option.id)}" ${option.id===row.listingId?'selected':''} ${usedBrands.has(brandKey(option))?'disabled':''}>${h(option.brand+' — '+option.model+' ('+option.year+')')}${usedBrands.has(brandKey(option))?' · brand already selected':''}</option>`).join('')}</select></label>
    ${write&&car?`<div class="adm-showcase-image-actions">${media?`<button type="button" class="adm-secondary" data-showcase-prepare="${h(row.key)}" ${busy?'disabled':''}>${row.error?'Retry background removal':row.image?'Redo background removal':'Prepare background-free image'}</button><label class="adm-secondary adm-file-button ${busy?'is-disabled':''}">Choose photo<input type="file" data-showcase-source="${h(row.key)}" accept="image/jpeg,image/png,image/webp" ${busy?'disabled':''}></label><label class="adm-secondary adm-file-button ${busy?'is-disabled':''}">Upload cutout<input type="file" data-showcase-cutout="${h(row.key)}" accept="image/png,image/webp" ${busy?'disabled':''}></label>`:'<p class="adm-muted">Image preparation needs image-upload permission. You can choose an existing stock cutout or ask a team member with access to prepare one.</p>'}</div>`:''}
    <p class="adm-showcase-status ${row.error?'is-error':''}" role="${row.error?'alert':'status'}" aria-live="polite" data-showcase-status="${h(row.key)}">${h(row.error||row.progress||(selectedMissing?'Replace or remove this unavailable car.':row.image?'Review the wheels, mirrors and edges before saving.':car?'Selecting a new car starts image preparation automatically.':'Only available and reserved inventory can appear here.'))}</p>
@@ -63,7 +64,7 @@ export function renderShowcaseEditor(content){
  clearShowcaseAdmin();
  const configured=Array.isArray(content.settings.showcase)?content.settings.showcase:defaultShowcase(content);
  draft={generation,actor:ownerId(),rows:configured.map((entry,index)=>({key:`showcase-${generation}-${index}`,listingId:entry.listingId,image:entry.image||'',sourceBlob:null,error:'',progress:''})),nextKey:configured.length};
- return `<details class="adm-settings-group adm-showcase-group" open><summary><span>01</span> Homepage showcase <b>＋</b></summary><div><p class="adm-showcase-intro">Choose the cars in the large homepage brand selector. Add one car per brand and arrange their order below. The separate featured inventory grid still uses each listing’s “Feature on the homepage” setting.</p><p class="adm-showcase-explainer">Background removal runs on this device. Review each cutout before saving. For the best result, use a clear photo with the whole car visible, or upload a transparent PNG or WebP.</p><div id="showcase-editor" data-showcase-session="${generation}">${editorBody()}</div><p class="adm-muted">Removing every car hides the showcase. Your inventory listings and their original photographs stay unchanged.</p></div></details>`;
+ return `<details class="adm-settings-group adm-showcase-group" open><summary><span>01</span> Homepage showcase <b>＋</b></summary><div><p class="adm-showcase-intro">Choose the cars in the large homepage brand selector. Add one car per brand and arrange their order below. The separate featured inventory grid still uses each listing’s “Feature on the homepage” setting.</p><p class="adm-showcase-explainer">Background removal runs on this device. Cars are automatically centred and fitted to the frame. Review each cutout before saving. For the best result, use a clear photo with the whole car visible, or upload a transparent PNG or WebP.</p><div id="showcase-editor" data-showcase-session="${generation}">${editorBody()}</div><p class="adm-muted">Removing every car hides the showcase. Your inventory listings and their original photographs stay unchanged.</p></div></details>`;
 }
 function refresh(form,focusSelector){
  if(form!==currentForm())return;
@@ -136,7 +137,7 @@ async function prepare(row,form,{file=null,transparent=false}={}){
 }
 function rowFor(key){return draft?.rows.find(row=>row.key===key)}
 export function bindShowcaseAdmin({markDirty:mark}={}){
- if(mark)markDirty=mark;if(bound)return;bound=true;
+ if(mark)markDirty=mark;if(bound)return;bound=true;bindCutoutFrames();
  document.addEventListener('change',async event=>{
   const target=event.target,form=target.closest('#settings-form');if(!editable(form))return;
   if(target.dataset.showcaseCar){

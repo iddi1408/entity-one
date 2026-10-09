@@ -79,29 +79,63 @@ function referenced(content, pathname, origin) {
   });
 }
 
+/** Match every stored field, including private drafts and showcase cutouts.
+ * Absolute URLs on another site hostname are conservatively protected too. */
+export function mediaReferencePaths(content, origin) {
+  const pending = [content], paths = new Set();
+  while (pending.length) {
+    const value = pending.pop();
+    if (typeof value === 'string') {
+      if (!value.includes('/assets/uploads/')) continue;
+      try { paths.add(new URL(value, origin).pathname); } catch { /* Not a URL. */ }
+    } else if (value && typeof value === 'object') pending.push(...Object.values(value));
+  }
+  return paths;
+}
+export const mediaInUse = (content, pathname, origin) => mediaReferencePaths(content, origin).has(pathname);
+
 /**
  * Closures supplied by application.js preserve its authentication and public projection.
  * readContent() returns {content, revision}; audit(action, sessionId, detail) records safe metadata.
  * Unrelated paths return null. HttpError is intentionally handled by the caller's normal catch.
  */
 export async function createHostedMediaRoutes({request, env, path, authenticated, readContent, publicContent, json, audit, HttpError}) {
-  const isManifest = path === '/api/media', isImage = path.startsWith('/assets/uploads/');
-  if (!isManifest && !isImage) return null;
+  const isManifest = path === '/api/media', isDeletion = path.startsWith('/api/media/'), isImage = path.startsWith('/assets/uploads/');
+  if (!isManifest && !isDeletion && !isImage) return null;
   if (!env.BUCKET) throw new HttpError(503, 'The media service is unavailable.');
   const address = new URL(request.url), origin = address.origin;
   if (address.protocol !== 'https:' && !['localhost', '127.0.0.1', '[::1]'].includes(address.hostname)) throw new HttpError(403, 'A secure connection is required.');
-  if (isManifest) {
-    if (!['GET', 'POST'].includes(request.method)) throw new HttpError(405, 'Method not allowed.');
+  if (isManifest || isDeletion) {
+    if (!(isDeletion ? ['DELETE'] : ['GET', 'POST']).includes(request.method)) throw new HttpError(405, 'Method not allowed.');
     const session = await authenticated();
     if (!session) throw new HttpError(401, 'Log in to manage media.');
     if (request.method === 'GET') {
-      const listed = await env.BUCKET.list({prefix: 'uploads/', limit: 1000, include: ['customMetadata']});
-      const media = listed.objects.map(mediaItem).filter(Boolean).sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt) || b.id.localeCompare(a.id));
+      const listed = await env.BUCKET.list({prefix: 'uploads/', limit: 1000, include: ['customMetadata']}), stored = await readContent(), references = mediaReferencePaths(stored.content, origin);
+      const media = listed.objects.map(mediaItem).filter(Boolean).map(item => ({...item, inUse: references.has(item.url)})).sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt) || b.id.localeCompare(a.id));
       return json({media, ...(listed.truncated ? {truncated: true} : {})}, 200, PRIVATE_HEADERS);
     }
     if (request.headers.get('Origin') !== origin || request.headers.get('Sec-Fetch-Site') === 'cross-site') throw new HttpError(403, 'Use this website to submit changes.');
     const csrf = await tokenFor(session.token);
     if (!equalToken(request.headers.get('X-CSRF-Token'), csrf)) throw new HttpError(403, 'Your security token is missing or expired. Refresh the page.');
+    if (isDeletion) {
+      const key = 'uploads/' + path.slice('/api/media/'.length);
+      if (!UPLOAD.test(key) || address.search) throw new HttpError(404, 'Image not found.');
+      const item = mediaItem(await env.BUCKET.head(key));
+      if (!item) throw new HttpError(404, 'Image not found.');
+      const latest = await authenticated();
+      if (!latest || !equalToken(await tokenFor(latest.token), csrf)) throw new HttpError(401, 'Your session has expired. Log in again.');
+      const stored = await readContent();
+      if (mediaInUse(stored.content, item.url, origin)) throw new HttpError(409, 'This image is in use. Remove it from listings, drafts, the homepage showcase or website settings and save those changes before deleting it.');
+      const detail = {id: item.id, filename: item.name, size: item.size};
+      // An attempt is durable before storage changes; only completed deletions get media.delete.
+      await audit('media.delete_requested', latest.row.session_id, detail);
+      if (mediaInUse((await readContent()).content, item.url, origin)) throw new HttpError(409, 'This image was added to the website while you were deleting it. Remove its references and save before trying again.');
+      try { await env.BUCKET.delete(key); }
+      catch { throw new HttpError(503, 'The image could not be deleted. Please try again.'); }
+      try { await audit('media.delete', latest.row.session_id, detail); }
+      catch { throw new HttpError(503, 'The deletion result could not be confirmed. Refresh the image library before trying again.'); }
+      return json({deleted: true, id: item.id}, 200, PRIVATE_HEADERS);
+    }
     if (!/^multipart\/form-data\s*;/i.test(request.headers.get('Content-Type') || '')) throw new HttpError(415, 'A multipart image upload is required.');
     const body = await boundedBody(request, HttpError);
     let form;

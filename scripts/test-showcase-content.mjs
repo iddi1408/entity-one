@@ -102,7 +102,7 @@ try{
   await call(images.draft,'GET',undefined,website,404);await call(images.draft,'GET',undefined,owner);
   result=await contentFor(owner);result.content.listings.find(car=>car.id==='live').status='draft';await call('/api/content','PUT',result,owner);await call(images.live,'GET',undefined,{},404);
   const csp=(await call('/api/content')).response.headers.get('Content-Security-Policy');
-  ok(csp.includes("script-src 'self' 'wasm-unsafe-eval';"));ok(csp.includes("worker-src 'self';"));ok(csp.includes("img-src 'self' https: data: blob:;"));ok(!csp.includes("'unsafe-eval'"));ok(csp.includes("connect-src 'self';"));
+  ok(csp.includes("script-src 'self' 'wasm-unsafe-eval';"));ok(csp.includes("worker-src 'self';"));ok(csp.includes("img-src 'self' https: data: blob:;"));ok(!csp.includes("'unsafe-eval'"));ok(csp.includes("connect-src 'self' https://api.web3forms.com;"));
 
   // The local preview applies the same publication rules and serves the local
   // WebAssembly runtime with executable-safe MIME/CSP rather than relaxing JS.
