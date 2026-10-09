@@ -114,6 +114,12 @@ async function listingPhoto(car,signal){
 async function prepare(row,form,{file=null,transparent=false}={}){
  if(!editable(form)||!can('media.write')||activeJob)return;
  const car=liveCars(state.adminData).find(car=>car.id===row.listingId);if(!car)return;
+ // A reviewed cutout belongs to this exact listing photo. Reusing it avoids
+ // replacing the clean result with a worse automatic mask on repeated clicks.
+ const preparedImage=!file&&!row.sourceBlob&&!transparent?stockCutout(car):null;
+ if(preparedImage){
+  row.image=preparedImage;row.error='';row.progress='Prepared cutout reused. Review it, then save website changes to publish it.';dirty(form);refresh(form);return;
+ }
  const controller=new AbortController(),job={controller,key:row.key,listingId:row.listingId,form,generation};activeJob=job;
  row.error='';row.progress=transparent?'Checking transparency…':'Preparing photo…';dirty(form);refresh(form);
  try{

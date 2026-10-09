@@ -151,6 +151,19 @@ async function until(predicate){for(let attempt=0;attempt<30&&!predicate();attem
  const wrong=structuredClone(content);wrong.listings.find(car=>car.id==='sf90').image='/assets/uploads/different-sf90.jpg';const unmatched=harness({content:wrong});unmatched.mount();omits(unmatched.markup,'data-showcase-prepared');await unmatched.click({'data-showcase-prepared':unmatched.keys()[0]});equal(unmatched.read()[0].image,'/assets/uploads/rough-cutout.png','Forged replacements cannot apply a cutout from another photo');equal(unmatched.dirty,0);
 }
 {
+ const content=fixture(),cleanImage='/assets/ferrari-sf90-cutout-clean.png';
+ content.listings.push(car('sf90','Ferrari',{model:'SF90',image:'/assets/uploads/11bada7e-9700-4f61-b94c-1b7dc6c9bcc5.jpg'}));content.settings.showcase=[{listingId:'sf90',image:'/assets/uploads/rough-cutout.png',scale:.85}];
+ const h=harness({content});h.mount();const key=h.keys()[0];
+ await h.click({'data-showcase-prepare':key});equal(h.read()[0],{listingId:'sf90',image:cleanImage,scale:.85},'Redo reuses the reviewed cutout for the exact source photo');equal(h.fetches.length,0);equal(h.engineCalls,0);equal(h.requests.length,0);ok(h.dirty>0);equal(content.settings.showcase[0].image,'/assets/uploads/rough-cutout.png','Redo remains a draft until Website Save');
+ await h.click({'data-showcase-prepare':key});equal(h.read()[0].image,cleanImage);equal(h.engineCalls,0,'Repeated redo cannot replace the clean mask');
+ await h.upload(key,new Blob(['custom source'],{type:'image/jpeg'}));equal(h.engineCalls,1,'An explicitly chosen photo is still processed');equal(h.requests.length,1);equal(h.read()[0].image,'/assets/uploads/showcase-ready.png');
+ await h.click({'data-showcase-prepare':key});equal(h.engineCalls,2,'Redo retains the explicitly chosen source photo');equal(h.fetches.length,0);equal(h.requests.length,2);
+ await h.upload(key,new Blob(['custom transparent cutout'],{type:'image/png'}),true);equal(h.validationCalls,1,'An explicitly uploaded transparent cutout is still validated');equal(h.requests.length,3);
+ const noMedia=harness({content,permissions:['content.write']});noMedia.mount();await noMedia.click({'data-showcase-prepare':noMedia.keys()[0]});equal(noMedia.read()[0].image,'/assets/uploads/rough-cutout.png');equal(noMedia.dirty,0,'Redo keeps its media permission requirement');
+ const saving=harness({content});saving.mount();saving.form.dataset.showcaseSaving='true';await saving.click({'data-showcase-prepare':saving.keys()[0]});equal(saving.read()[0].image,'/assets/uploads/rough-cutout.png');equal(saving.dirty,0,'Saving locks the reviewed-cutout path too');
+ const changed=structuredClone(content);changed.listings.find(car=>car.id==='sf90').image='/assets/uploads/another-sf90.jpg';const changedPhoto=harness({content:changed});changedPhoto.mount();await changedPhoto.click({'data-showcase-prepare':changedPhoto.keys()[0]});equal(changedPhoto.engineCalls,1,'A different listing photo uses normal background removal');equal(changedPhoto.fetches.length,1);
+}
+{
  const h=harness();h.mount();const pending=deferred();h.setEngine(()=>pending.promise);const choice=h.choose(h.keys()[0],'custom');
  await until(()=>h.engineCalls===1);equal(h.saveButtons[0].disabled,true);throws(()=>h.read(),/Finish or cancel/);equal(h.requests.length,0);
  pending.resolve({blob:new Blob(['cutout'],{type:'image/png'})});await choice;
