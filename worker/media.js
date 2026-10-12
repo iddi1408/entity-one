@@ -100,13 +100,13 @@ export const mediaInUse = (content, pathname, origin) => mediaReferencePaths(con
  * Unrelated paths return null. HttpError is intentionally handled by the caller's normal catch.
  */
 export async function createHostedMediaRoutes({request, env, path, authenticated, readContent, publicContent, json, audit, HttpError}) {
-  const isManifest = path === '/api/media', isDeletion = path.startsWith('/api/media/'), isImage = path.startsWith('/assets/uploads/');
-  if (!isManifest && !isDeletion && !isImage) return null;
+  const isManifest = path === '/api/media', isMediaItem = path.startsWith('/api/media/'), isImage = path.startsWith('/assets/uploads/');
+  if (!isManifest && !isMediaItem && !isImage) return null;
   if (!env.BUCKET) throw new HttpError(503, 'The media service is unavailable.');
   const address = new URL(request.url), origin = address.origin;
   if (address.protocol !== 'https:' && !['localhost', '127.0.0.1', '[::1]'].includes(address.hostname)) throw new HttpError(403, 'A secure connection is required.');
-  if (isManifest || isDeletion) {
-    if (!(isDeletion ? ['DELETE'] : ['GET', 'POST']).includes(request.method)) throw new HttpError(405, 'Method not allowed.');
+  if (isManifest || isMediaItem) {
+    if (!(isMediaItem ? ['DELETE', 'PATCH'] : ['GET', 'POST']).includes(request.method)) throw new HttpError(405, 'Method not allowed.');
     const session = await authenticated();
     if (!session) throw new HttpError(401, 'Log in to manage media.');
     if (request.method === 'GET') {
@@ -117,13 +117,28 @@ export async function createHostedMediaRoutes({request, env, path, authenticated
     if (request.headers.get('Origin') !== origin || request.headers.get('Sec-Fetch-Site') === 'cross-site') throw new HttpError(403, 'Use this website to submit changes.');
     const csrf = await tokenFor(session.token);
     if (!equalToken(request.headers.get('X-CSRF-Token'), csrf)) throw new HttpError(403, 'Your security token is missing or expired. Refresh the page.');
-    if (isDeletion) {
+    if (isMediaItem) {
       const key = 'uploads/' + path.slice('/api/media/'.length);
       if (!UPLOAD.test(key) || address.search) throw new HttpError(404, 'Image not found.');
       const item = mediaItem(await env.BUCKET.head(key));
       if (!item) throw new HttpError(404, 'Image not found.');
       const latest = await authenticated();
       if (!latest || !equalToken(await tokenFor(latest.token), csrf)) throw new HttpError(401, 'Your session has expired. Log in again.');
+      if (request.method === 'PATCH') {
+        let input;
+        try { const bytes = await boundedBody(request, HttpError); if (bytes.length > 1024) throw new Error(); input = JSON.parse(new TextDecoder().decode(bytes)); } catch { throw new HttpError(400, 'Enter a new image name.'); }
+        if (!input || Object.keys(input).length !== 1 || typeof input.name !== 'string' || !input.name.trim() || input.name.length > 120 || /[\x00-\x1f\x7f]/.test(input.name)) throw new HttpError(400, 'Use a name from 1 to 120 characters.');
+        const name = safeName(input.name, key.split('.').at(-1));
+        if (!name || name.length > 120 || /[\x00-\x1f\x7f]/.test(name)) throw new HttpError(400, 'Use a name up to 120 characters.');
+        if (name === item.name) return json({media: item}, 200, PRIVATE_HEADERS);
+        const current = await env.BUCKET.get(key);
+        if (!current || current.etag !== (await env.BUCKET.head(key))?.etag) throw new HttpError(409, 'This image changed. Refresh the library and try again.');
+        const renamed = await env.BUCKET.put(key, current.body, {onlyIf: {etagMatches: current.etag}, httpMetadata: current.httpMetadata, customMetadata: {...current.customMetadata, name}});
+        if (!renamed) throw new HttpError(409, 'This image changed. Refresh the library and try again.');
+        try { await audit('media.rename', latest.row.session_id, {id: item.id, from: item.name, to: name}); }
+        catch (error) { throw error; }
+        return json({media: {...item, name}}, 200, PRIVATE_HEADERS);
+      }
       const stored = await readContent();
       if (mediaInUse(stored.content, item.url, origin)) throw new HttpError(409, 'This image is in use. Remove it from listings, drafts, the homepage showcase or website settings and save those changes before deleting it.');
       const detail = {id: item.id, filename: item.name, size: item.size};

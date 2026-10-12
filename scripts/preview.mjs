@@ -145,11 +145,11 @@ export async function createPreviewServer({publicDirectory = path.resolve('publi
       if (['GET', 'HEAD'].includes(request.method) && (request.headers['transfer-encoding'] || Number(request.headers['content-length'] || 0) > 0)) throw new PreviewError(400, 'This request must not contain a body.');
       if (pathname === '/api/setup' || pathname === '/api/commit') throw new PreviewError(404, 'This service does not exist.');
       if (pathname === '/api/media' || pathname.startsWith('/api/media/')) {
-        const deleting = pathname.startsWith('/api/media/');
-        if (!(deleting ? ['DELETE'] : ['GET', 'POST']).includes(request.method)) throw new PreviewError(405, 'Method not allowed.');
+        const itemRoute = pathname.startsWith('/api/media/'), deleting = itemRoute && request.method === 'DELETE';
+        if (!(itemRoute ? ['DELETE', 'PATCH'] : ['GET', 'POST']).includes(request.method)) throw new PreviewError(405, 'Method not allowed.');
         const current = await session();
         if (!current.authenticated) throw new PreviewError(401, 'Log in to manage media.');
-        const permission = ['POST', 'DELETE'].includes(request.method) ? 'media.write' : 'media.read';
+        const permission = ['POST', 'DELETE', 'PATCH'].includes(request.method) ? 'media.write' : 'media.read';
         if (current.mustChangePassword || !current.user?.permissions?.includes(permission)) throw new PreviewError(403, 'You do not have permission to manage media.');
         if (request.method === 'GET') {
           const references = mediaReferencePaths(await fullContent(), origin);
@@ -157,11 +157,19 @@ export async function createPreviewServer({publicDirectory = path.resolve('publi
         }
         exactOrigin(request, origin);
         if (!equalToken(request.headers['x-csrf-token'], current.csrfToken)) throw new PreviewError(403, 'Your security token is missing or expired. Refresh the page.');
-        if (deleting) {
+        if (itemRoute) {
           if (address.search) throw new PreviewError(404, 'Image not found.');
           const filename = pathname.slice('/api/media/'.length), record = await media.read(filename, true);
           const latest = await session();
           if (!latest.authenticated || latest.mustChangePassword || !latest.user?.permissions?.includes('media.write') || !equalToken(current.csrfToken, latest.csrfToken)) throw new PreviewError(401, 'Your session has expired. Log in again.');
+          if (!deleting) {
+            let input;
+            try { const bytes = await bodyBytes(request, 1024); input = JSON.parse(bytes.toString('utf8')); } catch (error) { if (error instanceof PreviewError) throw error; throw new PreviewError(400, 'Enter a new image name.'); }
+            if (!input || Object.keys(input).length !== 1 || typeof input.name !== 'string' || !input.name.trim() || input.name.length > 120 || /[\x00-\x1f\x7f]/.test(input.name)) throw new PreviewError(400, 'Use a name from 1 to 120 characters.');
+            const item = await media.rename(filename, input.name);
+            await DB.prepare('INSERT INTO audit_log (at, action, session_id, detail, actor_id, actor_username, actor_role) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(Math.floor(Date.now() / 1000), 'media.rename', latest.session.id, JSON.stringify({id: item.id, from: record.item.name, to: item.name}), latest.user.id, latest.user.username, latest.user.role).run();
+            return json({media: item});
+          }
           if (mediaInUse(await fullContent(), record.item.url, origin)) throw new PreviewError(409, 'This image is in use. Remove it from listings, drafts, the homepage showcase or website settings and save those changes before deleting it.');
           const log = action => DB.prepare('INSERT INTO audit_log (at, action, session_id, detail, actor_id, actor_username, actor_role) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(Math.floor(Date.now() / 1000), action, latest.session.id, JSON.stringify({id: record.item.id, filename: record.item.name, size: record.item.size}), latest.user.id, latest.user.username, latest.user.role).run();
           await log('media.delete_requested');

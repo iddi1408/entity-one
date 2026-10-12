@@ -96,6 +96,14 @@
 .adm-editor-cover{margin:24px 0;border-radius:9px;gap:20px}
 .adm-editor-cover>div{min-width:0}
 .adm-editor-cover .adm-text{font-size:13px;min-height:44px}
+.adm-gallery-editor{margin:18px 0}
+.adm-gallery-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:12px}
+.adm-gallery-grid figure{margin:0;min-width:0;padding:8px;border:1px solid #303b48;border-radius:8px;background:#0d1013}
+.adm-gallery-grid img{display:block;width:100%;height:100px;object-fit:contain;background:#090b0d;border-radius:5px}
+.adm-gallery-grid figcaption{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:7px;color:#a7b5c6;font-size:11px}
+.adm-gallery-grid .adm-text{min-height:36px;padding:6px 8px}
+.adm-empty-gallery{margin:0;color:#8e9db0;font-size:12px}
+.adm-gallery-upload{max-width:440px;min-height:118px}
 .adm-settings-group summary{font-size:15px;line-height:1.5;padding:21px 24px;gap:15px}
 .adm-settings-group summary>span{font-size:12px;color:#9baec4}
 .adm-settings-group summary>b{font-size:21px;color:#b7c5d8}
@@ -173,6 +181,8 @@ body[data-admin] #dialog .dialog-close{width:44px;height:44px}
   .adm-footer{padding:20px 22px;font-size:10px}
 }
 @media(max-width:720px){
+  .adm-sidebar nav button>span{display:none}
+  .adm-sidebar nav button{gap:5px}
   .adm-sidebar{padding:15px 18px;gap:12px}
   .adm-wordmark{font-size:19px}
   .adm-sidebar-bottom{gap:12px}
@@ -242,6 +252,9 @@ body[data-admin] #dialog .dialog-close{width:44px;height:44px}
   .adm-editor-cover{padding:15px}
   .adm-editor-cover>img{width:100%;height:160px}
   .adm-editor-cover>div{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+  .adm-gallery-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+  .adm-gallery-grid img{height:100px}
+  .adm-gallery-grid figcaption{font-size:11px}
   .adm-editor-cover button,.adm-editor-cover label{font-size:13px}
   .adm-editor-actions,.adm-save-footer{gap:10px;padding:14px 0 max(14px,env(safe-area-inset-bottom));align-items:center;margin-top:24px}
   .adm-editor-actions>div,.adm-save-footer>div{gap:9px;flex:1;justify-content:flex-end}

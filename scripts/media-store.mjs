@@ -1,5 +1,5 @@
 import {randomUUID} from 'node:crypto';
-import {mkdir, lstat, realpath, readdir, readFile, writeFile, unlink} from 'node:fs/promises';
+import {mkdir, lstat, realpath, readdir, readFile, writeFile, unlink, rename as renameFile} from 'node:fs/promises';
 import path from 'node:path';
 
 export const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
@@ -94,6 +94,16 @@ export async function createMediaStore(runtimeDirectory) {
     async read(filename, head = false) {
       const record = await readRecord(filename);
       return {...record, bytes: head ? null : await readFile(record.imagePath)};
+    },
+    async rename(filename, name) {
+      const record = await readRecord(filename), nextName = safeName(name, FILE.exec(filename)[2]);
+      if (nextName.length > 120 || /[\x00-\x1f\x7f]/.test(nextName)) throw new PreviewError(400, 'Use a name up to 120 characters.');
+      const item = {...record.item, name: nextName}, temporaryPath = path.join(root, `${randomUUID()}.json`);
+      try {
+        await writeFile(temporaryPath, JSON.stringify(item) + '\n', {flag: 'wx', mode: 0o600});
+        await renameFile(temporaryPath, record.metadataPath);
+      } catch (error) { await unlink(temporaryPath).catch(() => {}); throw error; }
+      return item;
     },
     async remove(filename) {
       const record = await readRecord(filename);

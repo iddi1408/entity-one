@@ -338,7 +338,7 @@ export default {
       const address = new URL(request.url), path = address.pathname.replace(/\/$/, '') || '/';
       const mediaAuth = async () => {
         const session = await authenticated(request, env);
-        const permission = ['POST', 'DELETE'].includes(request.method) ? 'media.write' : 'media.read';
+        const permission = ['POST', 'DELETE', 'PATCH'].includes(request.method) ? 'media.write' : 'media.read';
         if (!session || (!path.startsWith('/api/') && (session.admin.must_change_password || !can(session.admin, permission)))) return null;
         if (session.admin.must_change_password || !can(session.admin, permission)) throw new HttpError(403, 'You do not have permission to manage media.');
         return session;
