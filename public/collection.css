@@ -26,7 +26,6 @@
 .brand-card .has-stock{color:#cad0d6}
 .brand-logo{display:inline-flex;align-items:center;justify-content:center;position:relative;overflow:hidden;flex:none;line-height:1}
 .brand-logo img,.brand-logo svg{display:block;width:100%;height:100%;object-fit:contain;filter:none}
-.brand-logo img.brand-artwork{position:absolute;max-width:none;object-fit:fill}
 .brand-logo.logo-invert img,.brand-logo.logo-invert svg{filter:invert(1)}
 .brand-logo.logo-unknown{font-size:15px;font-weight:500;letter-spacing:-.025em}
 .selected-marque{display:flex;align-items:center;gap:25px;padding:24px 0 30px;border-bottom:1px solid #ffffff25}

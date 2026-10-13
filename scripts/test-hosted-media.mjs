@@ -5,11 +5,12 @@ import {createHostedMediaRoutes} from '../worker/media.js';
 class HttpError extends Error { constructor(status, message) { super(message); this.status = status; } }
 class FakeBucket {
   objects = new Map(); calls = [];
-  record(key, value) { return {key, size: value.bytes.byteLength, customMetadata: {...value.customMetadata}, httpMetadata: {...value.httpMetadata}}; }
+  record(key, value) { return {key, etag: value.etag, size: value.bytes.byteLength, customMetadata: {...value.customMetadata}, httpMetadata: {...value.httpMetadata}}; }
   async put(key, bytes, options) {
     this.calls.push(['put', key]);
     if (options?.onlyIf?.etagDoesNotMatch === '*' && this.objects.has(key)) return null;
-    const value = {bytes: new Uint8Array(bytes), customMetadata: {...options.customMetadata}, httpMetadata: {...options.httpMetadata}};
+    if (options?.onlyIf?.etagMatches && options.onlyIf.etagMatches !== this.objects.get(key)?.etag) return null;
+    const value = {etag: crypto.randomUUID(), bytes: bytes instanceof ReadableStream ? new Uint8Array(await new Response(bytes).arrayBuffer()) : new Uint8Array(bytes), customMetadata: {...options.customMetadata}, httpMetadata: {...options.httpMetadata}};
     this.objects.set(key, value); return this.record(key, value);
   }
   async list(options) {
@@ -81,6 +82,24 @@ assert.match(uploaded.headers.get('Cache-Control'), /no-store/);
 assert.deepEqual(audit, [{action: 'media.upload', sessionId: session.row.session_id, detail: {id: item.id, size: item.size}}]);
 assert.deepEqual((await (await call('/api/media', {headers: auth})).json()).media, [{...item, inUse: false}]);
 assert.equal(bucket.calls.at(-1)[1].limit, 1000);
+// Renaming retains bytes, image URL and access protection, including on domain aliases.
+const renamePath = '/api/media/' + item.url.split('/').at(-1);
+await status(401, renamePath, {method:'PATCH', body:JSON.stringify({name:'SF90 side'})});
+await status(403, renamePath, {method:'PATCH', headers:{Cookie:auth.Cookie}, body:JSON.stringify({name:'SF90 side'})});
+await status(400, renamePath, {method:'PATCH', headers:auth, body:JSON.stringify({name:''})});
+const renamed = await (await call(renamePath, {method:'PATCH', headers:auth, body:JSON.stringify({name:'SF90 side'})})).json();
+assert.equal(renamed.media.name, 'SF90 side');
+assert.equal(renamed.media.url, item.url);
+assert.deepEqual(new Uint8Array(await (await call(item.url,{headers:auth})).arrayBuffer()),png);
+assert.equal(audit.at(-1).action,'media.rename');
+for (const hostname of ['entity-1.com','www.entity-1.com','entity-one-atelier.apexfngg.chatgpt.site']) {
+  content.listings[0].gallery=['https://'+hostname+item.url];
+  await status(200,item.url);
+}
+content.listings[0].gallery=['https://unrelated.example'+item.url];
+await status(404,item.url);
+delete content.listings[0].gallery;
+await call(renamePath,{method:'PATCH',headers:auth,body:JSON.stringify({name:item.name})});
 await status(404, item.url);
 const image = await call(item.url, {headers: auth});
 assert.equal(image.headers.get('Content-Type'), 'image/png');

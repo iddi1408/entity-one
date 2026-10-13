@@ -123,7 +123,7 @@ function renderGalleryEditor(form){const input=form?.querySelector('[name=galler
 function formError(form,e){const el=form.querySelector('.form-error');if(el){el.textContent=e.message;el.hidden=false}else notify(e.message)}
 async function saved(message){dirty=false;await ensureAdminData(true);render();notify(message)}
 function confirmAction(title,copy,action,{label='Confirm',danger=false}={}){modal(`<span class="adm-eyebrow">PLEASE CONFIRM</span><h2 id="dialog-title">${h(title)}</h2><p class="detail-description">${h(copy)}</p><p class="form-error" role="alert" hidden></p><div class="adm-editor-actions"><button class="adm-secondary" data-close>Cancel</button><button class="${danger?'adm-danger':'adm-primary'}" id="confirm-action">${h(label)}</button></div>`);document.querySelector('#confirm-action').onclick=async e=>{e.target.disabled=true;try{await action();closeModal()}catch(err){formError(document.querySelector('#dialog-content'),err);e.target.disabled=false}}}
-async function upload(files){requirePermission('media.write');const items=[];for(const file of files){if(file.size>8*1024*1024)throw Error('Choose images smaller than 8 MB.');const f=new FormData();f.set('file',file);const result=await api('/media',{method:'POST',body:f});items.push(result.media)}return items}
+async function upload(files,onUploaded=()=>{}){requirePermission('media.write');const items=[];for(const file of files){if(!file.size||file.size>8*1024*1024)throw Error('Choose images smaller than 8 MB.');if(!/\.(jpe?g|png|webp)$/i.test(file.name))throw Error('Choose JPG, PNG or WebP images.');}for(const file of files){const f=new FormData();f.set('file',file);const result=await api('/media',{method:'POST',body:f});items.push(result.media);onUploaded(result.media)}return items}
 let pendingImport=null;
 export function bindForms(){
  bindAccess();
@@ -135,7 +135,28 @@ export function bindForms(){
   if(e.target.id==='admin-section'){switchAdminTab(e.target.value);return}
   if(['admin-status','admin-region','admin-sort'].includes(e.target.id)){filter=document.querySelector('#admin-status').value;region=document.querySelector('#admin-region').value;sort=document.querySelector('#admin-sort').value;document.querySelector('#admin-results').innerHTML=listingRows()}
   if(e.target.name==='status'&&e.target.closest('#listing-form')){const help=document.querySelector('#listing-publication-help');if(help)help.textContent=publicationHelp[e.target.value]||'';dirty=true}
-  if(e.target.matches('[data-upload],[data-listing-upload],[data-gallery-upload]')){const target=e.target,originalForm=target.closest('#listing-form'),files=[...target.files];if(!files.length)return;if(target.matches('[data-gallery-upload]')&&files.length+originalForm.querySelector('[name=gallery]').value.split('\n').filter(Boolean).length>12)throw Error('A car can have up to 12 gallery photographs. Remove a photo before adding more.');target.disabled=true;try{notify(`Uploading ${files.length} photograph${files.length===1?'':'s'}…`);const items=await upload(files);if(context)context.media.unshift(...items);if(originalForm?.isConnected){if(target.matches('[data-listing-upload]')){const input=originalForm.querySelector('[name=image]');input.value=items[0].url;originalForm.querySelector('#listing-preview').src=safeUrl(items[0].url)}else if(target.matches('[data-gallery-upload]')){const input=originalForm.querySelector('[name=gallery]'),urls=input.value.split('\n').map(value=>value.trim()).filter(Boolean);input.value=[...urls,...items.map(item=>item.url)].join('\n');renderGalleryEditor(originalForm)}else await ensureAdminData(true);dirty=true}else await ensureAdminData(true);notify(`${items.length} photograph${items.length===1?'':'s'} uploaded.`)}finally{target.disabled=false;target.value=''}}
+  if(e.target.matches('[data-upload],[data-listing-upload],[data-gallery-upload]')){
+   const target=e.target,originalForm=target.closest('#listing-form'),files=[...target.files];if(!files.length)return;
+   if(originalForm?.dataset.uploading)return;
+   if(target.matches('[data-gallery-upload]')&&files.length+originalForm.querySelector('[name=gallery]').value.split('\n').filter(Boolean).length>12)throw Error('A car can have up to 12 gallery photographs. Remove a photo before adding more.');
+   const controls=[...(originalForm||target.closest('.adm-upload')).querySelectorAll('input[type=file],button[type=submit]')],states=controls.map(el=>el.disabled);controls.forEach(el=>el.disabled=true);if(originalForm)originalForm.dataset.uploading='true';
+   let completed=0;
+   try{
+    notify(`Uploading ${files.length} photographs…`);
+    await upload(files,item=>{
+     completed++;if(context)context.media.unshift(item);
+     if(originalForm?.isConnected){
+      if(target.matches('[data-listing-upload]')){originalForm.querySelector('[name=image]').value=item.url;originalForm.querySelector('#listing-preview').src=safeUrl(item.url)}
+      else{const input=originalForm.querySelector('[name=gallery]');input.value=[...input.value.split('\n').filter(Boolean),item.url].join('\n');renderGalleryEditor(originalForm)}
+      dirty=true;
+     }
+     notify(`Uploaded ${completed} of ${files.length}.`);
+    });
+    if(!originalForm?.isConnected){await ensureAdminData(true);render()}
+    notify(originalForm?.isConnected?'Photographs added. Save the listing to publish them.':'Photographs uploaded.');
+   }catch(error){if(!originalForm?.isConnected){await ensureAdminData(true);render()}throw Error(`${completed?completed+' uploaded and kept. ':''}${error.message}`)}
+   finally{controls.forEach((el,i)=>el.disabled=states[i]);if(originalForm)delete originalForm.dataset.uploading;target.value=''}
+  }
   if(e.target.id==='import-backup'){requirePermission('backups.restore');const file=e.target.files[0];if(!file)return;if(file.size>600000)throw Error('The backup is too large (maximum 600 KB).');const value=JSON.parse(await file.text()),content=value.content||value;if(!content.settings||!Array.isArray(content.listings)||content.listings.length>300)throw Error('Choose a valid ENTITY-1 content backup.');pendingImport=content;confirmAction('Import this collection?',`This backup contains ${content.listings.length} listings. It will replace current listings and site content. Your previous version remains available in saved versions.`,async()=>{await saveContent(pendingImport);pendingImport=null;await saved('Backup imported.');});}
  }catch(err){notify(err.message)}});
  document.addEventListener('click',async e=>{const el=e.target.closest('button,[data-copy-media]');if(!el)return;try{
@@ -176,7 +197,7 @@ export function bindForms(){
   e.preventDefault();form.requestSubmit(button);
  });
  document.addEventListener('invalid',e=>{if(e.target.closest('#settings-form')){for(const group of document.querySelectorAll('#settings-form details'))if(group.contains(e.target))group.open=true}},true);
- document.addEventListener('submit',async e=>{const form=e.target;if(!['login-form','listing-form','settings-form','media-rename-form'].includes(form.id))return;e.preventDefault();const buttons=[...form.querySelectorAll('[type=submit]')];buttons.forEach(b=>b.disabled=true);form.querySelector('.form-error').hidden=true;const f=new FormData(form);try{
+ document.addEventListener('submit',async e=>{const form=e.target;if(!['login-form','listing-form','settings-form','media-rename-form'].includes(form.id))return;e.preventDefault();if(form.dataset.uploading){notify('Wait for your photographs to finish uploading.');return}const buttons=[...form.querySelectorAll('[type=submit]')];buttons.forEach(b=>b.disabled=true);form.querySelector('.form-error').hidden=true;const f=new FormData(form);try{
   if(form.id==='media-rename-form'){requirePermission('media.write');await api('/media/'+encodeURIComponent(form.dataset.url.split('/').pop()),{method:'PATCH',body:JSON.stringify({name:String(f.get('name')||'').trim()})});closeModal();await saved('Image renamed.')}
   if(form.id==='login-form'){state.session={localOnly:state.session.localOnly,...await api('/login',{method:'POST',body:JSON.stringify({username:f.get('username'),password:f.get('password')})})};form.reset();clearAdminData();if(!needsPasswordChange())await loadContent();state.adminTab='dashboard';navigate('/admin');if(!needsPasswordChange())notify('Welcome back.');}
   if(form.id==='listing-form'){requirePermission(form.dataset.type+'.write');if(!String(f.get('image')||'').trim())throw Error('Choose or upload a cover photograph.');const c={...Object.fromEntries(f),id:form.dataset.id||crypto.randomUUID(),type:form.dataset.type,featured:f.has('featured'),gallery:String(f.get('gallery')||'').split('\n').map(v=>v.trim()).filter(Boolean)},next=structuredClone(data()),index=next.listings.findIndex(x=>x.id===c.id);if(index>=0)next.listings[index]=c;else next.listings.push(c);await saveContent(next);dirty=false;closeModal();await saved('Listing saved.');}

@@ -10,7 +10,7 @@ import {refreshContact} from './contact.js';
 export const state={data:null,adminData:null,revision:0,session:{authenticated:false},adminTab:'dashboard'};
 const telemetry=createTelemetry({getSession:()=>state.session,getContent:()=>state.data});
 export const h=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-export function safeUrl(value){if(!value)return '';try{const u=new URL(value,location.origin);return !u.username&&!u.password&&(u.protocol==='https:'||(u.origin===location.origin&&u.pathname.startsWith('/assets/')))?u.href:''}catch{return ''}}
+export function safeUrl(value){if(!value)return '';try{const u=new URL(value,location.origin);if(['entity-1.com','www.entity-1.com','entity-one-atelier.apexfngg.chatgpt.site'].includes(u.hostname)&&u.protocol==='https:'&&!u.username&&!u.password&&u.pathname.startsWith('/assets/'))return u.pathname+u.search;return !u.username&&!u.password&&(u.protocol==='https:'||(u.origin===location.origin&&u.pathname.startsWith('/assets/')))?u.href:''}catch{return ''}}
 export function notify(message){const el=document.querySelector('#notification');el.textContent=message;el.hidden=false;clearTimeout(notify.timer);notify.timer=setTimeout(()=>el.hidden=true,5500)}
 export function modal(html){document.querySelector('#dialog-content').innerHTML=html;const el=document.querySelector('#dialog');if(!el.open)el.showModal()}
 export function closeModal(force=false){if(!force&&document.querySelector('#dialog').open&&!mayDiscard(()=>closeModal()))return;document.querySelector('#dialog').close()}

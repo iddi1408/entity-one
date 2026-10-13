@@ -239,6 +239,7 @@ export async function createPreviewServer({publicDirectory = path.resolve('publi
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
+  await import('./prepare-brand-assets.mjs');
   const server = await createPreviewServer();
   server.listen(4174, '127.0.0.1', () => console.log('ENTITY-1 local workspace: http://127.0.0.1:4174\nPrivate media and content stay local. Public registration and GitHub publishing are disabled.'));
 }

@@ -3,6 +3,7 @@ import {createHash} from 'node:crypto';
 import path from 'node:path';
 import {compileWorker} from './compile-worker.mjs';
 await import('./prepare-cutout-assets.mjs');
+await import('./prepare-brand-assets.mjs');
 
 const mime = {'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.mjs':'text/javascript; charset=utf-8','.wasm':'application/wasm','.json':'application/json; charset=utf-8','.svg':'image/svg+xml','.jpg':'image/jpeg','.png':'image/png','.ttf':'font/ttf'};
 const assets = {}, external = [];

@@ -74,7 +74,7 @@ function referenced(content, pathname, origin) {
   for (const item of content?.settings?.showcase || []) images.push(item.image);
   return images.some(value => {
     if (typeof value !== 'string' || !value) return false;
-    try { const image = new URL(value, origin); return image.origin === origin && image.pathname === pathname; }
+    try { const image = new URL(value, origin); return (image.origin === origin || (image.protocol === 'https:' && !image.username && !image.password && ['entity-1.com', 'www.entity-1.com', 'entity-one-atelier.apexfngg.chatgpt.site'].includes(image.hostname))) && image.pathname === pathname; }
     catch { return false; }
   });
 }

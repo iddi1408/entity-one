@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import vm from 'node:vm';
+import {readFile} from 'node:fs/promises';
+const source=await readFile('public/admin.js','utf8');
+const fn=source.slice(source.indexOf('async function upload('),source.indexOf('let pendingImport='));
+let calls=0;
+const context=vm.createContext({FormData,requirePermission(){},api:async()=>{calls++;if(calls===2)throw Error('Connection interrupted');return {media:{url:'/assets/first.png'}}}});
+vm.runInContext(fn,context);
+const file=new File(['image'],'car.png',{type:'image/png'}),kept=[];
+await assert.rejects(context.upload([file,file],item=>kept.push(item)),/Connection interrupted/);
+assert.equal(kept.length,1,'Successful photographs remain attached after a later failure');
+assert.equal(kept[0].url,'/assets/first.png');
+calls=0;
+await assert.rejects(context.upload([file,new File(['bad'],'unsupported.heic')]),/JPG, PNG or WebP/);
+assert.equal(calls,0,'Validate the whole batch before uploading');
+console.log('PASS: multi-image upload partial failure and batch validation');
