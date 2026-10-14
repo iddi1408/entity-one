@@ -99,6 +99,14 @@ After migration, verify public pages, full-resolution media, administrator login
 - **Logs:** inspect who changed content or access and when, with Discord delivery status. Credentials and private note text are excluded from the audit log.
 - **Access:** inspect sessions, replace the current session token, sign out other sessions, or log out. Replacing a token does not extend its original eight-hour deadline.
 
+## Deploy to Cloudflare Workers without R2
+
+`npm run build:cloudflare` builds the same application for Workers Static Assets and uses Workers KV for uploaded photographs and edited-asset overrides. Static files are served directly without Worker invocations; API calls, database-backed content and dynamic uploads use the Worker. Copy `wrangler.jsonc.example` to `wrangler.jsonc`, create one D1 database and one KV namespace with Wrangler, then insert their returned IDs in the config. Run `npx wrangler d1 migrations apply entity-one-db --remote`, configure runtime secrets, and deploy with `npx wrangler deploy`. The Cloudflare build has no R2 requirement and does not change the separate Sites build.
+
+Cloudflare Workers KV's free allowance is 1 GB stored, 100,000 reads/day, and 1,000 writes/day; a value can be at most 25 MiB. Uploads are limited by this shared storage and daily write allowance. KV is eventually consistent, so edits may take time to appear at distant locations. Do not enable a paid plan or R2 subscription as part of this setup.
+
+Use `wrangler dev` to test against local D1/KV bindings first. Before routing the business domain, migrate the current hosted content, staff and audit data, media, and runtime secrets; confirm public pages, admin login, photo uploads, logs, contact form, and concierge on the `workers.dev` URL. For production email, preserve and verify every existing Spacemail MX, SPF, DKIM and autodiscover record before any nameserver change. Change domain routing only after the Worker deployment and data checks pass.
+
 Save changes explicitly. Version checks prevent a stale editor from silently overwriting a newer save. The homepage’s Pause motion control and the operating system’s reduced-motion preference control ambient motion.
 
 ## Account recovery

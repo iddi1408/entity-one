@@ -6,6 +6,7 @@ await import('./prepare-cutout-assets.mjs');
 await import('./prepare-brand-assets.mjs');
 
 const mime = {'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.mjs':'text/javascript; charset=utf-8','.wasm':'application/wasm','.json':'application/json; charset=utf-8','.svg':'image/svg+xml','.jpg':'image/jpeg','.png':'image/png','.ttf':'font/ttf'};
+const cloudflare = process.argv.includes('--cloudflare');
 const assets = {}, external = [];
 async function collect(dir, prefix = '') {
   for (const entry of await readdir(dir, {withFileTypes:true})) {
@@ -15,8 +16,8 @@ async function collect(dir, prefix = '') {
     // Preserve original image quality without loading photographs into every Worker isolate.
     if (bytes.length > 32768 && key.startsWith('/assets/')) {
       const hash = createHash('sha256').update(bytes).digest('hex');
-      assets[key] = {type, hash, size:bytes.length, storage:'r2'};
-      external.push({path:key, filename:path.resolve(filename), hash, size:bytes.length, type});
+      assets[key] = {type, hash, size:bytes.length, storage:cloudflare ? 'static' : 'r2'};
+      if (!cloudflare) external.push({path:key, filename:path.resolve(filename), hash, size:bytes.length, type});
     } else assets[key] = {type, bytes:bytes.toString('base64')};
   }
 }
@@ -29,4 +30,5 @@ await writeFile('dist/server/index.js', await compileWorker({assets, content}));
 await writeFile('.sites-runtime/deploy-assets.json', JSON.stringify(external));
 await cp('.openai/hosting.json', 'dist/.openai/hosting.json');
 await cp('drizzle', 'dist/.openai/drizzle', {recursive:true});
-console.log(`Built ENTITY-1: ${Object.keys(assets).length} assets, ${external.length} full-quality assets backed by R2.`);
+const fullQuality = cloudflare ? Object.values(assets).filter(asset => asset.storage === 'static').length : external.length;
+console.log(`Built ENTITY-1: ${Object.keys(assets).length} assets, ${fullQuality} full-quality assets ${cloudflare ? 'served from Cloudflare static assets' : 'backed by R2'}.`);

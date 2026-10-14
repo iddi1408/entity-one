@@ -452,7 +452,10 @@ export default {
         return new Response(request.method === 'HEAD' ? null : publicDefaults, {headers: {...security, 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store'}});
       }
       const file = allowedPages.has(path) ? '/index.html' : path, asset = STATIC_ASSETS[file];
-      if (!asset) return new Response('Not found', {status: 404, headers: security});
+      if (!asset) {
+        if (env.ASSETS && allowedPages.has(path)) return env.ASSETS.fetch(new Request(new URL('/index.html', address.origin), request));
+        return new Response('Not found', {status: 404, headers: security});
+      }
       const bytes = Uint8Array.from(atob(asset.bytes), c => c.charCodeAt(0));
       return new Response(request.method === 'HEAD' ? null : bytes, {headers: {...security, 'Content-Type': asset.type, 'Cache-Control': file.startsWith('/assets/') ? 'public, max-age=3600' : 'no-cache'}});
     } catch (error) {

@@ -3,9 +3,12 @@ site.tar.gz
 
 node_modules/
 .sites-runtime/
+.wrangler/
 .env
 .env.*
 !.env.example
 *.tar.gz
 public/assets/cutout-runtime/
 public/assets/brands/display/
+
+wrangler.dryrun.jsonc

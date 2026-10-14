@@ -1,0 +1,29 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "entity-one-brokerage",
+  "main": "./dist/server/index.js",
+  "compatibility_date": "2026-10-14",
+  "account_id": "da2bcd8296e3f91c583d45c4d3c4d09a",
+  "workers_dev": true,
+  "assets": {
+    "directory": "./public/",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*", "/content.json", "/assets/uploads/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "entity-one-db",
+      "database_id": "5d382c01-20de-4898-b401-e48f1c4b2614",
+      "migrations_dir": "./drizzle"
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "MEDIA",
+      "id": "3e311344cc5f40ca87836b9a211ad679"
+    }
+  ],
+  "observability": {"enabled": true}
+}

@@ -102,7 +102,8 @@ export const mediaInUse = (content, pathname, origin) => mediaReferencePaths(con
 export async function createHostedMediaRoutes({request, env, path, authenticated, readContent, publicContent, json, audit, HttpError}) {
   const isManifest = path === '/api/media', isMediaItem = path.startsWith('/api/media/'), isImage = path.startsWith('/assets/uploads/');
   if (!isManifest && !isMediaItem && !isImage) return null;
-  if (!env.BUCKET) throw new HttpError(503, 'The media service is unavailable.');
+  const bucket = mediaBucket(env);
+  if (!bucket) throw new HttpError(503, 'The media service is unavailable.');
   const address = new URL(request.url), origin = address.origin;
   if (address.protocol !== 'https:' && !['localhost', '127.0.0.1', '[::1]'].includes(address.hostname)) throw new HttpError(403, 'A secure connection is required.');
   if (isManifest || isMediaItem) {
@@ -110,7 +111,7 @@ export async function createHostedMediaRoutes({request, env, path, authenticated
     const session = await authenticated();
     if (!session) throw new HttpError(401, 'Log in to manage media.');
     if (request.method === 'GET') {
-      const listed = await env.BUCKET.list({prefix: 'uploads/', limit: 1000, include: ['customMetadata']}), stored = await readContent(), references = mediaReferencePaths(stored.content, origin);
+      const listed = await bucket.list({prefix: 'uploads/', limit: 1000, include: ['customMetadata']}), stored = await readContent(), references = mediaReferencePaths(stored.content, origin);
       const media = listed.objects.map(mediaItem).filter(Boolean).map(item => ({...item, inUse: references.has(item.url)})).sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt) || b.id.localeCompare(a.id));
       return json({media, ...(listed.truncated ? {truncated: true} : {})}, 200, PRIVATE_HEADERS);
     }
@@ -120,7 +121,7 @@ export async function createHostedMediaRoutes({request, env, path, authenticated
     if (isMediaItem) {
       const key = 'uploads/' + path.slice('/api/media/'.length);
       if (!UPLOAD.test(key) || address.search) throw new HttpError(404, 'Image not found.');
-      const item = mediaItem(await env.BUCKET.head(key));
+      const item = mediaItem(await bucket.head(key));
       if (!item) throw new HttpError(404, 'Image not found.');
       const latest = await authenticated();
       if (!latest || !equalToken(await tokenFor(latest.token), csrf)) throw new HttpError(401, 'Your session has expired. Log in again.');
@@ -131,9 +132,9 @@ export async function createHostedMediaRoutes({request, env, path, authenticated
         const name = safeName(input.name, key.split('.').at(-1));
         if (!name || name.length > 120 || /[\x00-\x1f\x7f]/.test(name)) throw new HttpError(400, 'Use a name up to 120 characters.');
         if (name === item.name) return json({media: item}, 200, PRIVATE_HEADERS);
-        const current = await env.BUCKET.get(key);
-        if (!current || current.etag !== (await env.BUCKET.head(key))?.etag) throw new HttpError(409, 'This image changed. Refresh the library and try again.');
-        const renamed = await env.BUCKET.put(key, current.body, {onlyIf: {etagMatches: current.etag}, httpMetadata: current.httpMetadata, customMetadata: {...current.customMetadata, name}});
+        const current = await bucket.get(key);
+        if (!current || current.etag !== (await bucket.head(key))?.etag) throw new HttpError(409, 'This image changed. Refresh the library and try again.');
+        const renamed = await bucket.put(key, current.body, {onlyIf: {etagMatches: current.etag}, httpMetadata: current.httpMetadata, customMetadata: {...current.customMetadata, name}});
         if (!renamed) throw new HttpError(409, 'This image changed. Refresh the library and try again.');
         try { await audit('media.rename', latest.row.session_id, {id: item.id, from: item.name, to: name}); }
         catch (error) { throw error; }
@@ -145,7 +146,7 @@ export async function createHostedMediaRoutes({request, env, path, authenticated
       // An attempt is durable before storage changes; only completed deletions get media.delete.
       await audit('media.delete_requested', latest.row.session_id, detail);
       if (mediaInUse((await readContent()).content, item.url, origin)) throw new HttpError(409, 'This image was added to the website while you were deleting it. Remove its references and save before trying again.');
-      try { await env.BUCKET.delete(key); }
+      try { await bucket.delete(key); }
       catch { throw new HttpError(503, 'The image could not be deleted. Please try again.'); }
       try { await audit('media.delete', latest.row.session_id, detail); }
       catch { throw new HttpError(503, 'The deletion result could not be confirmed. Refresh the image library before trying again.'); }
@@ -165,10 +166,10 @@ export async function createHostedMediaRoutes({request, env, path, authenticated
     if (!latest || !equalToken(await tokenFor(latest.token), csrf)) throw new HttpError(401, 'Your session has expired. Log in again.');
     const id = crypto.randomUUID(), key = `uploads/${id}.${extension}`;
     const item = {id, url: '/assets/' + key, name: safeName(file.name, extension), size: bytes.length, uploadedAt: new Date().toISOString()};
-    const saved = await env.BUCKET.put(key, bytes, {onlyIf: {etagDoesNotMatch: '*'}, httpMetadata: {contentType: TYPES[extension], cacheControl: 'private, no-store'}, customMetadata: {name: item.name, uploadedAt: item.uploadedAt}});
+    const saved = await bucket.put(key, bytes, {onlyIf: {etagDoesNotMatch: '*'}, httpMetadata: {contentType: TYPES[extension], cacheControl: 'private, no-store'}, customMetadata: {name: item.name, uploadedAt: item.uploadedAt}});
     if (!saved) throw new HttpError(409, 'The image could not be stored. Please try again.');
     try { await audit('media.upload', latest.row.session_id, {id: item.id, size: item.size}); }
-    catch (error) { await env.BUCKET.delete(key).catch(() => {}); throw error; }
+    catch (error) { await bucket.delete(key).catch(() => {}); throw error; }
     return json({media: item}, 201, PRIVATE_HEADERS);
   }
   if (!['GET', 'HEAD'].includes(request.method)) throw new HttpError(405, 'Method not allowed.');
@@ -178,7 +179,8 @@ export async function createHostedMediaRoutes({request, env, path, authenticated
     const stored = await readContent();
     if (!referenced(publicContent(stored.content), path, origin)) throw new HttpError(404, 'Image not found.');
   }
-  const object = await env.BUCKET[request.method === 'HEAD' ? 'head' : 'get'](key);
+  const object = await bucket[request.method === 'HEAD' ? 'head' : 'get'](key);
   if (!object || !mediaItem(object)) { await object?.body?.cancel().catch(() => {}); throw new HttpError(404, 'Image not found.'); }
   return new Response(request.method === 'HEAD' ? null : object.body, {headers: {...PRIVATE_HEADERS, 'Content-Type': TYPES[match[2]], 'Content-Length': String(object.size), 'Content-Disposition': `inline; filename="${match[1]}.${match[2]}"`, 'Content-Security-Policy': "default-src 'none'; sandbox"}});
 }
+import {mediaBucket} from './storage.js';

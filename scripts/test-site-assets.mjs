@@ -6,7 +6,9 @@ class HttpError extends Error { constructor(status, message) { super(message); t
 const origin = 'https://entity-one.example', bytes = new TextEncoder().encode('known build asset');
 const hash = createHash('sha256').update(bytes).digest('hex');
 const route = '/api/admin/site-assets/' + hash;
-const assets = {'/assets/art.png': {type: 'image/png', size: bytes.length, hash, storage: 'r2'}, '/app.js': {type: 'text/javascript', bytes: 'embedded'}};
+const staticPath = '/assets/static-art.png';
+const staticHash = createHash('sha256').update(bytes).digest('hex');
+const assets = {'/assets/art.png': {type: 'image/png', size: bytes.length, hash, storage: 'r2'}, [staticPath]: {type: 'image/png', size: bytes.length, hash: staticHash, storage: 'static'}, '/app.js': {type: 'text/javascript', bytes: 'embedded'}};
 const objects = new Map(), calls = [];
 const bucket = {
   async put(key, value, options) { calls.push(['put', key]); objects.set(key, {bytes: new Uint8Array(value), options}); return {key}; },
@@ -61,6 +63,13 @@ assert.equal(image.headers.get('Cache-Control'), 'public, max-age=3600');
 assert.equal(image.headers.get('Content-Security-Policy'), "default-src 'self'");
 assert.equal(image.headers.get('ETag'), '"' + hash + '"');
 assert.equal(image.headers.get('X-Content-Type-Options'), 'nosniff');
+const staticImage = await call(staticPath, {}, {ASSETS: {fetch: async request => {
+  assert.equal(new URL(request.url).pathname, staticPath);
+  return new Response(bytes, {headers: {'Content-Type': 'image/png'}});
+}}});
+assert.equal(staticImage.status, 200);
+assert.deepEqual(new Uint8Array(await staticImage.arrayBuffer()), bytes);
+assert.equal(staticImage.headers.get('ETag'), '"' + staticHash + '"');
 const head = await call('/assets/art.png', {method: 'HEAD'});
 assert.equal((await head.arrayBuffer()).byteLength, 0); assert.equal(calls.at(-1)[0], 'head');
 const cached = await call('/assets/art.png', {headers: {'If-None-Match': '"' + hash + '"'}});
@@ -71,4 +80,4 @@ assert.equal(await call('/assets/uploads/private.png', {}, {BUCKET: bucket}, {'/
 objects.set('site-assets/' + hash, {bytes: new Uint8Array(1)});
 await rejects(503, '/assets/art.png');
 assert.ok(calls.every(([, key]) => key === 'site-assets/' + hash));
-console.log(`Hosted build assets passed ${checks} route cases, including authorization, Origin/CSRF, manifest/size/hash constraints, revoked sessions, public reads, HEAD, and ETag.`);
+console.log(`Hosted build assets passed ${checks} route cases, including R2 and Cloudflare static reads, authorization, Origin/CSRF, manifest/size/hash constraints, revoked sessions, HEAD, and ETag.`);
